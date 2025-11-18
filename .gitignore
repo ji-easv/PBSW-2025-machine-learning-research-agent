@@ -2,4 +2,5 @@
 .cache/
 .env
 coding/
+logs/
 **/__pycache__/
