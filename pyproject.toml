@@ -1,0 +1,14 @@
+[project]
+name = "research-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "autogen==0.10.0",
+    "autogen-ext[docker]>=0.7.5",
+    "dotenv==0.9.9",
+    "fix-busted-json==0.0.18",
+    "mistralai==1.9.11",
+]
+
