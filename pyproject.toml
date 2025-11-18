@@ -10,5 +10,6 @@ dependencies = [
     "dotenv==0.9.9",
     "fix-busted-json==0.0.18",
     "mistralai==1.9.11",
+    "requests>=2.31.0",
 ]
 

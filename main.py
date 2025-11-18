@@ -49,7 +49,7 @@ LLM_CONFIG = {
     ]
 }
 
-web_search_assistant = AssistantAgent(
+web_search_assistant = ConversableAgent(
     name="WebSearchAssistant",
     llm_config=LLM_CONFIG,
     system_message="You are an expert web search assistant. Use the web search tool to find relevant information.",
@@ -60,7 +60,7 @@ web_search_assistant.register_for_llm(
     description="This tool allows you to search the web for information relevant to user queries.",
 )(search_web)
 
-research_paper_api_assistant = AssistantAgent(
+research_paper_api_assistant = ConversableAgent(
     name="ResearchPaperAPIAssistant",
     llm_config=LLM_CONFIG,
     system_message="You are an expert research paper search assistant. Use the research paper search tool to find relevant academic papers.",
@@ -106,6 +106,10 @@ user_proxy.register_for_execution(
 
 user_proxy.initiate_chat(
     web_search_assistant,
-    message="Find a research paper on speed bumps that was published after 2003 and has 10 citations.",
+    message="""
+    Find a research paper on speed bumps that was published after 2003 and has 10 citations.
+    Return the top three articles with their titles, authors, publication years, number of citations, and URLs.
+    
+    """,
     summary_method="reflection_with_llm",
 )

@@ -690,6 +690,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "fix-busted-json" },
     { name = "mistralai" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -699,6 +700,7 @@ requires-dist = [
     { name = "dotenv", specifier = "==0.9.9" },
     { name = "fix-busted-json", specifier = "==0.0.18" },
     { name = "mistralai", specifier = "==1.9.11" },
+    { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [[package]]
