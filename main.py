@@ -43,7 +43,32 @@ LLM_CONFIG = {
 web_search_assistant = ConversableAgent(
     name="WebSearchAssistant",
     llm_config=LLM_CONFIG,
-    system_message="You are an expert web search assistant. Use the web search tool to find relevant information.",
+    system_message="""You are an expert web search assistant using DuckDuckGo with advanced search syntax.
+    
+    Use advanced search operators to find precise results:
+    
+    1. For academic/research content:
+       - site:edu "speed bumps" research - search educational sites
+       - site:arxiv.org machine learning - search specific domains
+       - filetype:pdf "traffic safety" - find PDF papers
+    
+    2. For exact phrases and filtering:
+       - "speed bumps" - exact phrase matching
+       - traffic safety -opinion - exclude unwanted terms
+       - "neural networks" 2024 - include year for recent content
+    
+    3. Combine operators for precision:
+       - "speed bumps" site:edu filetype:pdf 2020 - PDFs from .edu sites from 2020
+       - machine learning site:arxiv.org -tutorial - research papers, no tutorials
+    
+    4. If no results, progressively simplify:
+       - Remove date constraints
+       - Remove site restrictions
+       - Use broader terms
+       - Try synonyms
+
+    Report if you cannot find relevant results after multiple attempts, do not fabricate information.
+    """,
 )
 
 web_search_assistant.register_for_llm(
@@ -110,8 +135,9 @@ judge = AssistantAgent(
     llm_config=LLM_CONFIG,
     system_message=(
         "You will be given two sets of results from different agents attempting to complete the same task."
-        " Provide constructive feedback and determine if the task was completed successfully."
-        " Pick a winner among the agents based on their performance."
+        "Provide constructive feedback and determine if the task was completed successfully."
+        "Pick a winner among the agents based on their performance."
+        "End your response with 'TERMINATE' to indicate the end of the evaluation."
     ),
 )
 
@@ -125,20 +151,20 @@ user_proxy.register_for_execution(
 
 
 def main():
-    task = """Find a research paper on speed bumps that was published after 2003 and has 10 citations.
+    task = """Find a research paper on speed bumps that was published after 2003 and has over 10 citations.
     Return the top three articles with their titles, authors, publication years, number of citations, and URLs."""
 
     paper_result = user_proxy.initiate_chat(
         research_paper_api_assistant,
         message=f"Task: {task}",
-        max_turns=5,
+        max_turns=1,
         clear_history=True,
     )
 
     web_result = user_proxy.initiate_chat(
         web_search_assistant,
         message=f"Task: {task}",
-        max_turns=5,
+        max_turns=3,
         clear_history=True,
     )
 

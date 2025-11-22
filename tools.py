@@ -1,53 +1,83 @@
 import requests
 import xml.etree.ElementTree as ET
 from typing import List
+import requests
+from bs4 import BeautifulSoup
 
 
-def search_web(query: str, num_results: int = 50) -> str:
+def search_web(query: str, num_results: int = 10) -> str:
     """
-    Search the web using SearXNG instance.
+    Search the web using DuckDuckGo.
+
+    Supports advanced search syntax:
+
+    Exact phrases:
+        - Use quotes: "speed bumps" - searches for the exact phrase
+
+    Exclude words:
+        - Use minus: speed bumps -motorcycle - excludes results with "motorcycle"
+
+    Site-specific search:
+        - site:edu speed bumps - search only educational sites
+        - site:arxiv.org machine learning - search only arxiv.org
+
+    Combine operators:
+        - "traffic safety" site:edu -opinion - exact phrase, only .edu sites, no opinion pieces
+
+    File type search:
+        - speed bumps filetype:pdf - search for PDF files only
+        - research filetype:pdf site:edu - PDFs from educational sites
+
+    Time-based (add year to query):
+        - speed bumps research 2020 - likely to return results from that year
+        - "machine learning" 2024 - recent results
+
+    Examples:
+        - "speed bumps" safety research
+        - traffic calming site:edu filetype:pdf
+        - "neural networks" 2024 -tutorial
+        - machine learning site:arxiv.org
 
     Args:
-        query: The search query string
-        num_results: Maximum number of results to return (default: 50)
+        query: Search query (supports syntax above)
+        num_results: Maximum number of results to return (default: 10)
 
     Returns:
-        Formatted string with search results
+        Formatted string with search results including titles, URLs, and snippets.
     """
-    searxng_url = "http://localhost:8080"
+    url = "https://html.duckduckgo.com/html/"
+    params = {"q": query}
+    headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
-        response = requests.get(
-            f"{searxng_url}/search",
-            params={
-                "q": query,
-                "format": "json",
-                "language": "en",
-            },
-            timeout=10,
-        )
+        response = requests.post(url, data=params, headers=headers, timeout=10)
         response.raise_for_status()
-        data = response.json()
 
-        results = data.get("results", [])
-        if not results:
-            return f"No results found for query: '{query}'"
+        soup = BeautifulSoup(response.text, "html.parser")
+        results = []
 
-        # Format the results
-        formatted_results = [f"Web search results for '{query}':\n"]
-        for i, result in enumerate(results[:num_results], 1):
-            title = result.get("title", "No title")
-            url = result.get("url", "")
-            content = result.get("content", "No description")
+        for i, result in enumerate(soup.find_all("div", class_="result"), 1):
+            if i > num_results:
+                break
 
-            formatted_results.append(
-                f"{i}. {title}\n" f"   URL: {url}\n" f"   {content}\n"
-            )
+            title_elem = result.find("a", class_="result__a")
+            snippet_elem = result.find("a", class_="result__snippet")
 
-        return "\n".join(formatted_results)
+            if title_elem:
+                title = title_elem.get_text(strip=True)
+                url = title_elem.get("href", "")
+                snippet = (
+                    snippet_elem.get_text(strip=True)
+                    if snippet_elem
+                    else "No description"
+                )
 
-    except requests.exceptions.RequestException as e:
-        return f"Error searching the web: {str(e)}\nMake sure SearXNG is running at {searxng_url}"
+                results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
+
+        return f"Search results for '{query}':\n\n" + "\n".join(results)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 
 api_base_url = "https://export.arxiv.org/api/query"
@@ -102,7 +132,9 @@ def search_research_papers_api(
         # Get total results
         total_results = root.find("opensearch:totalResults", ns)
         total_count = (
-            int(total_results.text) if total_results is not None and total_results.text else 0
+            int(total_results.text)
+            if total_results is not None and total_results.text
+            else 0
         )
 
         # Get entries
@@ -152,9 +184,7 @@ def search_research_papers_api(
 
             # Get primary category
             primary_cat = entry.find("arxiv:primary_category", ns)
-            category = (
-                primary_cat.get("term") if primary_cat is not None else "Unknown"
-            )
+            category = primary_cat.get("term") if primary_cat is not None else "Unknown"
 
             # Get PDF link
             pdf_link = None
