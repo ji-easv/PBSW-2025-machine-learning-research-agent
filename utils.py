@@ -18,7 +18,6 @@ def get_llm_config(api_key: str):
                 "seed": 42,
                 "native_tool_calls": False,
                 "cache_seed": None,
-                "timeout": 120,
             }
         ]
     }

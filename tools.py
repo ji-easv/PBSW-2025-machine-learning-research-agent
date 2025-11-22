@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
 from typing import List
-import requests
 from bs4 import BeautifulSoup
 
 
@@ -80,7 +79,7 @@ def search_web(query: str, num_results: int = 10) -> str:
         return "\n".join(results)
 
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error searching DuckDuckGo: {str(e)}"
 
 
 api_base_url = "https://export.arxiv.org/api/query"
