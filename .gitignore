@@ -4,3 +4,4 @@
 coding/
 logs/
 **/__pycache__/
+*.log

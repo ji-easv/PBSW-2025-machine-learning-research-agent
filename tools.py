@@ -74,7 +74,10 @@ def search_web(query: str, num_results: int = 10) -> str:
 
                 results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
 
-        return f"Search results for '{query}':\n\n" + "\n".join(results)
+        if not results:
+            return f"No results found for query: '{query}'"
+
+        return "\n".join(results)
 
     except Exception as e:
         return f"Error: {str(e)}"
