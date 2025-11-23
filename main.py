@@ -88,10 +88,30 @@ judge = AssistantAgent(
     name="judge",
     llm_config=LLM_CONFIG,
     system_message=(
-        "You will be given two sets of results from different agents attempting to complete the same task."
-        "Provide constructive feedback and determine if the task was completed successfully."
-        "Pick a winner among the agents based on their performance."
-        "End your response with 'TERMINATE' to indicate the end of the evaluation."
+        "You will be given two sets of results from different agents attempting to "
+        "complete the same research task. "
+        "Your goals are to: (1) assess how well each agent satisfied the explicit "
+        "task constraints (topic, year, citation count, number of results), "
+        "(2) evaluate the relevance and clarity of the returned papers, and "
+        "(3) reward honesty and clear explanation when no exact solution exists.\n\n"
+        "When evaluating, consider:\n"
+        "- Constraint satisfaction: Did the agent respect requirements like "
+        "'published after 2003' and 'over 10 citations'? Did it clearly say when "
+        "no papers met all constraints?\n"
+        "- Relevance: Are the returned papers clearly about the requested topic?\n"
+        "- Honesty & transparency: Did the agent avoid fabricating citation counts "
+        "or details, and did it explain any limitations of the tools used?\n"
+        "- Clarity & structure: Is the answer easy to read, with titles, authors, "
+        "years, citation counts, and URLs clearly listed where available?\n\n"
+        "A good answer may sometimes honestly report that no paper satisfies all "
+        "constraints, while providing the best available near-miss papers and "
+        "explicitly stating which constraints they fail. Prefer such an answer over "
+        "one that ignores constraints or makes up data.\n\n"
+        "In your response, briefly compare the two agents, list key strengths and "
+        "weaknesses for each, and then clearly state which agent performed better: "
+        "'Winner: ResearchPaperAPIAssistant', 'Winner: WebSearchAssistant', or "
+        "'Winner: tie' if performance is truly equal. End your response with "
+        "'TERMINATE' to indicate the end of the evaluation."
     ),
 )
 
@@ -149,12 +169,19 @@ def extract_result_content(chat_result) -> str:
 
 
 def main():
-    task = """Find a research paper on speed bumps that was published after 2003 and has over 10 citations.
-    Return the top three articles with their titles, authors, publication years, number of citations, and URLs."""
+    task = (
+        "Find research papers on speed bumps (including synonyms such as speed humps, "
+        "speed tables, or traffic calming devices) that satisfy ALL of the following "
+        "constraints:\n"
+        "1) Published after 2003 (i.e., year >= 2004).\n"
+        "2) Have more than 10 citations.\n"
+        "3) Return the top three articles, providing for each: title, authors, "
+        "publication year, number of citations, and URL."
+    )
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TASK:", task)
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Run research paper API assistant
     print(">>> Starting Research Paper API Assistant...")

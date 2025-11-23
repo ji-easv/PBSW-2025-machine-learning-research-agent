@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
 from typing import List, Tuple, Optional
-from bs4 import BeautifulSoup
 
 
 # arXiv subject categories and related keywords
@@ -88,7 +87,7 @@ def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
         return True, f"Topic matches arXiv subjects: {', '.join(matching_subjects)}"
 
     # If no clear match, default to uncertain (will try arXiv but with low confidence)
-    return None, "Topic may or may not be in arXiv - suggest trying web search as primary method"
+    return None, "Topic may or may not be in arXiv - suggest trying web search or Semantic Scholar as a primary method"
 
 
 def search_web(query: str, num_results: int = 10) -> str:
@@ -98,31 +97,33 @@ def search_web(query: str, num_results: int = 10) -> str:
     Supports advanced search syntax:
 
     Exact phrases:
-        - Use quotes: "speed bumps" - searches for the exact phrase
+        - Use quotes: "[your topic]" - searches for the exact phrase
 
     Exclude words:
-        - Use minus: speed bumps -motorcycle - excludes results with "motorcycle"
+        - Use minus: [topic] -[unwanted term] - excludes results with unwanted terms
 
     Site-specific search:
-        - site:edu speed bumps - search only educational sites
-        - site:arxiv.org machine learning - search only arxiv.org
+        - site:edu [your topic] - search only educational sites
+        - site:arxiv.org [your topic] - search only arxiv.org
+        - site:researchgate.net [your topic] - search ResearchGate
 
     Combine operators:
-        - "traffic safety" site:edu -opinion - exact phrase, only .edu sites, no opinion pieces
+        - "[exact phrase]" site:edu -opinion - exact phrase, only .edu sites, no opinion pieces
 
     File type search:
-        - speed bumps filetype:pdf - search for PDF files only
+        - [topic] filetype:pdf - search for PDF files only
         - research filetype:pdf site:edu - PDFs from educational sites
 
     Time-based (add year to query):
-        - speed bumps research 2020 - likely to return results from that year
-        - "machine learning" 2024 - recent results
+        - [topic] research 2020 - likely to return results from that year
+        - "[topic]" 2024 - recent results
 
-    Examples:
-        - "speed bumps" safety research
-        - traffic calming site:edu filetype:pdf
-        - "neural networks" 2024 -tutorial
-        - machine learning site:arxiv.org
+    Examples (diverse research domains):
+        - "neural networks" deep learning 2024
+        - "CRISPR gene editing" site:edu filetype:pdf
+        - quantum computing algorithms -tutorial
+        - "climate change models" 2023 site:nature.com
+        - protein folding site:arxiv.org
 
     Args:
         query: Search query (supports syntax above)
@@ -139,7 +140,12 @@ def search_web(query: str, num_results: int = 10) -> str:
             search_results = list(ddgs.text(query, max_results=num_results))
 
             if not search_results:
-                return f"No results found for query: '{query}'"
+                return (
+                    f"No results found for query: '{query}'. "
+                    "Consider trying simpler keywords, synonyms, or domain filters "
+                    "(e.g., site:edu, site:gov), or using a research-specific API if "
+                    "you need academic papers."
+                )
 
             for i, result in enumerate(search_results, 1):
                 title = result.get('title', 'No title')
@@ -175,7 +181,9 @@ def search_research_papers_api(
                - abs: (abstract)
                - cat: (category)
                - all: (all fields)
-               Example: "ti:speed bumps AND cat:physics"
+               Examples: "ti:quantum computing AND cat:quant-ph"
+                        "au:Hinton AND ti:neural networks"
+                        "abs:reinforcement learning"
         max_results: Number of results to return (default: 10)
         sort_by: Sort by "relevance", "lastUpdatedDate", or "submittedDate"
         sort_order: "ascending" or "descending"
@@ -217,7 +225,12 @@ def search_research_papers_api(
         entries = root.findall("atom:entry", ns)
 
         if total_count == 0 or not entries:
-            return f"No results found for query: '{query}'"
+            return (
+                f"No results found for query: '{query}'. "
+                "This topic may be outside arXiv's typical subject areas "
+                "(physics, math, CS, etc.). Consider using Semantic Scholar or "
+                "a general web search for this topic."
+            )
 
         # Format results
         results = [f"Found {total_count} total results. Showing top {len(entries)}:\n"]
@@ -308,8 +321,13 @@ def search_semantic_scholar(
     - Abstracts
     - DOI and URLs
 
-    This is useful for topics NOT in arXiv (e.g., civil engineering, medicine,
-    social sciences) and when citation requirements are specified.
+    Use this when citation thresholds (e.g., "over 10 citations") or
+    year constraints (e.g., "after 2003") are important, or when the
+    topic is outside arXiv's core areas (e.g., traffic, civil engineering).
+
+    If no results are found, the message will echo the effective filters
+    (query, year range, minimum citations) so the caller can decide how
+    to relax constraints or adjust the query.
 
     Args:
         query: Search query (keywords, phrases)
@@ -331,10 +349,13 @@ def search_semantic_scholar(
         "fields": "title,authors,year,citationCount,abstract,url,externalIds,fieldsOfStudy",
     }
 
+    year_filter_desc = "none"
     if year_from:
         params["year"] = f"{year_from}-"
+        year_filter_desc = f">= {year_from}"
         if year_to:
             params["year"] = f"{year_from}-{year_to}"
+            year_filter_desc = f"{year_from}–{year_to}"
 
     if min_citations > 0:
         params["minCitationCount"] = min_citations
@@ -349,12 +370,20 @@ def search_semantic_scholar(
         data = response.json()
 
         if "data" not in data or not data["data"]:
-            return f"No results found for query: '{query}' with specified filters"
+            return (
+                f"No results found for query: '{query}' with specified filters. "
+                f"Filters used: year={year_filter_desc}, min_citations={min_citations}, "
+                f"max_results={max_results}. Consider broadening the query, relaxing "
+                f"the citation threshold, or widening the year range."
+            )
 
         papers = data["data"]
         total = data.get("total", len(papers))
 
-        results = [f"Found {total} total results. Showing top {len(papers)}:\n"]
+        header_filters = f"year={year_filter_desc}, min_citations={min_citations}, max_results={max_results}"
+        results = [
+            f"Found {total} total results. Showing top {len(papers)} (filters: {header_filters}):\n"
+        ]
 
         for i, paper in enumerate(papers, 1):
             title = paper.get("title", "No title")
@@ -401,5 +430,3 @@ def search_semantic_scholar(
         return f"Error accessing Semantic Scholar API: {str(e)}\nPlease try again later."
     except Exception as e:
         return f"Unexpected error: {str(e)}"
-
-
