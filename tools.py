@@ -1,7 +1,94 @@
 import requests
 import xml.etree.ElementTree as ET
-from typing import List
+from typing import List, Tuple, Optional
 from bs4 import BeautifulSoup
+
+
+# arXiv subject categories and related keywords
+ARXIV_SUBJECTS = {
+    "physics": [
+        "physics", "astrophysics", "astronomy", "cosmology", "relativity", "quantum",
+        "particle", "nuclear", "plasma", "optics", "fluid dynamics", "thermodynamics",
+        "mechanics", "electromagnetism", "condensed matter", "superconductivity",
+        "photonics", "acoustics", "waves", "gravity"
+    ],
+    "mathematics": [
+        "mathematics", "algebra", "geometry", "topology", "calculus", "analysis",
+        "number theory", "combinatorics", "optimization", "probability", "statistics",
+        "differential equations", "numerical methods", "graph theory", "logic",
+        "mathematical modeling"
+    ],
+    "computer_science": [
+        "computer science", "machine learning", "artificial intelligence", "deep learning",
+        "neural network", "algorithm", "data structure", "programming", "software",
+        "computer vision", "natural language processing", "nlp", "robotics", "cryptography",
+        "cybersecurity", "database", "distributed systems", "networking", "graphics",
+        "human computer interaction", "information retrieval", "computational"
+    ],
+    "quantitative_biology": [
+        "biology", "genomics", "bioinformatics", "molecular", "cellular", "neuroscience",
+        "ecology", "evolution", "population genetics", "systems biology", "proteomics",
+        "biophysics", "computational biology"
+    ],
+    "quantitative_finance": [
+        "finance", "economics", "financial modeling", "portfolio", "risk management",
+        "derivatives", "trading", "market", "econometrics", "financial mathematics"
+    ],
+    "statistics": [
+        "statistics", "statistical", "bayesian", "inference", "regression",
+        "time series", "multivariate", "hypothesis testing", "sampling",
+        "statistical learning", "data analysis"
+    ],
+    "electrical_engineering": [
+        "signal processing", "image processing", "audio processing", "control systems",
+        "electrical engineering", "circuits", "telecommunications", "radar"
+    ]
+}
+
+# Topics NOT typically in arXiv
+NON_ARXIV_TOPICS = [
+    "civil engineering", "mechanical engineering", "traffic", "road", "transportation",
+    "construction", "architecture", "urban planning", "speed bump", "speed hump",
+    "medicine", "clinical", "health", "disease", "treatment", "therapy", "patient",
+    "psychology", "sociology", "anthropology", "education", "business", "management",
+    "marketing", "accounting", "law", "political science", "history", "literature",
+    "chemistry", "materials science", "aerospace", "automotive", "manufacturing"
+]
+
+
+def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
+    """
+    Determine if a research topic is likely to be found in arXiv.
+
+    Args:
+        query: The search query or topic
+
+    Returns:
+        Tuple of (is_suitable: Optional[bool], reason: str)
+        - True: definitely in arXiv
+        - False: definitely NOT in arXiv
+        - None: uncertain, may or may not be in arXiv
+    """
+    query_lower = query.lower()
+
+    # Check for explicitly non-arXiv topics
+    for non_topic in NON_ARXIV_TOPICS:
+        if non_topic in query_lower:
+            return False, f"Topic '{non_topic}' is not typically covered by arXiv (which focuses on physics, math, CS, etc.)"
+
+    # Check for arXiv-suitable topics
+    matching_subjects = []
+    for subject, keywords in ARXIV_SUBJECTS.items():
+        for keyword in keywords:
+            if keyword in query_lower:
+                matching_subjects.append(subject)
+                break
+
+    if matching_subjects:
+        return True, f"Topic matches arXiv subjects: {', '.join(matching_subjects)}"
+
+    # If no clear match, default to uncertain (will try arXiv but with low confidence)
+    return None, "Topic may or may not be in arXiv - suggest trying web search as primary method"
 
 
 def search_web(query: str, num_results: int = 10) -> str:
@@ -44,40 +131,27 @@ def search_web(query: str, num_results: int = 10) -> str:
     Returns:
         Formatted string with search results including titles, URLs, and snippets.
     """
-    url = "https://html.duckduckgo.com/html/"
-    params = {"q": query}
-    headers = {"User-Agent": "Mozilla/5.0"}
-
     try:
-        response = requests.post(url, data=params, headers=headers, timeout=10)
-        response.raise_for_status()
+        from ddgs import DDGS
 
-        soup = BeautifulSoup(response.text, "html.parser")
         results = []
+        with DDGS() as ddgs:
+            search_results = list(ddgs.text(query, max_results=num_results))
 
-        for i, result in enumerate(soup.find_all("div", class_="result"), 1):
-            if i > num_results:
-                break
+            if not search_results:
+                return f"No results found for query: '{query}'"
 
-            title_elem = result.find("a", class_="result__a")
-            snippet_elem = result.find("a", class_="result__snippet")
-
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                url = title_elem.get("href", "")
-                snippet = (
-                    snippet_elem.get_text(strip=True)
-                    if snippet_elem
-                    else "No description"
-                )
+            for i, result in enumerate(search_results, 1):
+                title = result.get('title', 'No title')
+                url = result.get('href', result.get('link', 'No URL'))
+                snippet = result.get('body', result.get('description', 'No description'))
 
                 results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
 
-        if not results:
-            return f"No results found for query: '{query}'"
-
         return "\n".join(results)
 
+    except ImportError:
+        return "Error: ddgs library not installed. Run: pip install ddgs"
     except Exception as e:
         return f"Error searching DuckDuckGo: {str(e)}"
 
@@ -214,3 +288,118 @@ def search_research_papers_api(
         return f"Error parsing arXiv response: {str(e)}\nThe API may have returned invalid data."
     except Exception as e:
         return f"Unexpected error: {str(e)}"
+
+
+def search_semantic_scholar(
+    query: str,
+    min_citations: int = 0,
+    year_from: int = None,
+    year_to: int = None,
+    max_results: int = 10,
+    fields_of_study: List[str] = None,
+) -> str:
+    """
+    Search Semantic Scholar for research papers with citation data.
+
+    Semantic Scholar covers ALL academic disciplines and provides:
+    - Citation counts
+    - Publication years
+    - Author information
+    - Abstracts
+    - DOI and URLs
+
+    This is useful for topics NOT in arXiv (e.g., civil engineering, medicine,
+    social sciences) and when citation requirements are specified.
+
+    Args:
+        query: Search query (keywords, phrases)
+        min_citations: Minimum number of citations (default: 0)
+        year_from: Earliest publication year (e.g., 2003)
+        year_to: Latest publication year (e.g., 2023)
+        max_results: Maximum number of results (default: 10)
+        fields_of_study: List of fields to filter (e.g., ["Engineering", "Computer Science"])
+
+    Returns:
+        Formatted string with paper information including citation counts
+    """
+    base_url = "https://api.semanticscholar.org/graph/v1/paper/search"
+
+    # Build query parameters
+    params = {
+        "query": query,
+        "limit": max_results,
+        "fields": "title,authors,year,citationCount,abstract,url,externalIds,fieldsOfStudy",
+    }
+
+    if year_from:
+        params["year"] = f"{year_from}-"
+        if year_to:
+            params["year"] = f"{year_from}-{year_to}"
+
+    if min_citations > 0:
+        params["minCitationCount"] = min_citations
+
+    if fields_of_study:
+        params["fieldsOfStudy"] = ",".join(fields_of_study)
+
+    try:
+        response = requests.get(base_url, params=params, timeout=30)
+        response.raise_for_status()
+
+        data = response.json()
+
+        if "data" not in data or not data["data"]:
+            return f"No results found for query: '{query}' with specified filters"
+
+        papers = data["data"]
+        total = data.get("total", len(papers))
+
+        results = [f"Found {total} total results. Showing top {len(papers)}:\n"]
+
+        for i, paper in enumerate(papers, 1):
+            title = paper.get("title", "No title")
+            year = paper.get("year", "Unknown")
+            citations = paper.get("citationCount", 0)
+
+            # Get authors
+            authors = paper.get("authors", [])
+            author_names = [a.get("name", "Unknown") for a in authors[:3]]
+            authors_text = ", ".join(author_names)
+            if len(authors) > 3:
+                authors_text += f" et al. ({len(authors)} total)"
+
+            # Get URL
+            url = paper.get("url", "N/A")
+
+            # Get DOI if available
+            external_ids = paper.get("externalIds", {})
+            doi = external_ids.get("DOI", "N/A")
+
+            # Get abstract
+            abstract = paper.get("abstract", "No abstract available")
+            if abstract and len(abstract) > 200:
+                abstract = abstract[:200] + "..."
+
+            # Get fields of study
+            fields = paper.get("fieldsOfStudy", [])
+            fields_text = ", ".join(fields) if fields else "Unknown"
+
+            results.append(
+                f"\n{i}. {title}\n"
+                f"   Authors: {authors_text}\n"
+                f"   Year: {year}\n"
+                f"   Citations: {citations}\n"
+                f"   Fields: {fields_text}\n"
+                f"   URL: {url}\n"
+                f"   DOI: {doi}\n"
+                f"   Abstract: {abstract}\n"
+            )
+
+        return "\n".join(results)
+
+    except requests.exceptions.RequestException as e:
+        return f"Error accessing Semantic Scholar API: {str(e)}\nPlease try again later."
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
+
+
