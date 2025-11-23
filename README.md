@@ -48,8 +48,31 @@ uv pip freeze > requirements.txt
 
 ## Running the project
 
-Allows you to store output in a file:
+### Direct Execution
+
+Store output in a file:
 
 ```sh
 uv run main.py 2>&1 | tee logs/output.log
 ```
+
+### Running with Aspire (Recommended for Development)
+
+Aspire provides a dashboard for monitoring logs, environment variables, and services.
+
+**1. Install Aspire CLI:**
+
+```sh
+dotnet tool install -g Aspire.Cli
+```
+
+**2. Run with Aspire:**
+
+```sh
+aspire run
+```
+
+The Aspire dashboard will open automatically at `http://localhost:18888`, showing:
+- Real-time logs from the agent
+- Service status and resource usage
+- Environment variables configuration
