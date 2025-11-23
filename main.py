@@ -8,42 +8,29 @@ from autogen import (
 )
 from autogen.coding import DockerCommandLineCodeExecutor
 
-from utils import get_work_dir
+from utils import (
+    ResearchPaperAPIAssistant_prompt,
+    WebSearchAssistant_prompt,
+    get_llm_config,
+    get_work_dir,
+)
 
 dotenv.load_dotenv()
 api_key = os.getenv("MISTRAL_API_KEY")
 if not api_key:
     raise ValueError("MISTRAL_API_KEY not found in environment variables.")
 
+LLM_CONFIG = get_llm_config(api_key=api_key)
 
 executor = DockerCommandLineCodeExecutor(
     work_dir=get_work_dir(),
 )
 
-LLM_CONFIG = {
-    "config_list": [
-        {
-            "model": "mistral-small-2503",
-            "api_type": "mistral",
-            "api_key": api_key,
-            "api_rate_limit": 0.5,
-            "max_retries": 3,
-            "timeout": 30,
-            "num_predict": -1,
-            "repeat_penalty": 1.1,
-            "stream": False,
-            "seed": 42,
-            "native_tool_calls": False,
-            "cache_seed": None,
-            "timeout": 120,
-        }
-    ]
-}
 
 web_search_assistant = ConversableAgent(
     name="WebSearchAssistant",
     llm_config=LLM_CONFIG,
-    system_message="You are an expert web search assistant. Use the web search tool to find relevant information.",
+    system_message=WebSearchAssistant_prompt,
 )
 
 web_search_assistant.register_for_llm(
@@ -54,37 +41,7 @@ web_search_assistant.register_for_llm(
 research_paper_api_assistant = ConversableAgent(
     name="ResearchPaperAPIAssistant",
     llm_config=LLM_CONFIG,
-    system_message="""You are an expert research paper search assistant specializing in arXiv API queries.
-
-    When searching for papers:
-    1. Use specific field prefixes for better results:
-    - ti:"keyword" - search in titles
-    - au:author_name - search by author
-    - abs:"keyword" - search in abstracts
-    - cat:category - filter by subject category (e.g., physics.class-ph, cs.AI)
-    
-    2. Use Boolean operators to refine searches:
-    - AND - combine terms (e.g., ti:"traffic safety" AND cat:physics)
-    - OR - alternative terms (e.g., ti:"speed bump" OR ti:"speed hump")
-    - ANDNOT - exclude terms
-
-    3. If you get no results or poor results:
-    - Try broader search terms
-    - Remove overly specific constraints
-    - Try related keywords or synonyms
-    - Search in different fields
-    - Try related categories if category search is too narrow
-
-    4. For citation or date requirements, note that arXiv API doesn't directly provide citation counts.
-    You may need to inform the user of this limitation and provide the best available results.
-
-    Example good queries:
-    - ti:"machine learning" AND cat:cs.AI
-    - au:hinton AND ti:neural
-    - abs:"deep learning" OR abs:"neural network"
-    - ti:"speed bump" OR ti:"road safety"
-
-    Always start with a focused query, then broaden if needed.""",
+    system_message=ResearchPaperAPIAssistant_prompt,
 )
 
 research_paper_api_assistant.register_for_llm(
@@ -110,8 +67,9 @@ judge = AssistantAgent(
     llm_config=LLM_CONFIG,
     system_message=(
         "You will be given two sets of results from different agents attempting to complete the same task."
-        " Provide constructive feedback and determine if the task was completed successfully."
-        " Pick a winner among the agents based on their performance."
+        "Provide constructive feedback and determine if the task was completed successfully."
+        "Pick a winner among the agents based on their performance."
+        "End your response with 'TERMINATE' to indicate the end of the evaluation."
     ),
 )
 
@@ -125,21 +83,17 @@ user_proxy.register_for_execution(
 
 
 def main():
-    task = """Find a research paper on speed bumps that was published after 2003 and has 10 citations.
+    task = """Find a research paper on speed bumps that was published after 2003 and has over 10 citations.
     Return the top three articles with their titles, authors, publication years, number of citations, and URLs."""
 
     paper_result = user_proxy.initiate_chat(
         research_paper_api_assistant,
         message=f"Task: {task}",
-        max_turns=5,
-        clear_history=True,
+        max_turns=10,
     )
 
     web_result = user_proxy.initiate_chat(
-        web_search_assistant,
-        message=f"Task: {task}",
-        max_turns=5,
-        clear_history=True,
+        web_search_assistant, message=f"Task: {task}", max_turns=10
     )
 
     # Step 3: Judge evaluates both results
@@ -157,7 +111,6 @@ def main():
 
                 Provide your evaluation and pick the best results.""",
         max_turns=2,
-        clear_history=True,
     )
 
 
