@@ -5,3 +5,5 @@ coding/
 logs/
 **/__pycache__/
 *.log
+/.idea
+/results
