@@ -34,27 +34,19 @@ class SearchOrchestrator(ConversableAgent):
         self, last_speaker, group: GroupChat
     ) -> ConversableAgent | None:
         messages = group.messages
+        last_message_content = messages[-1].get("content", "") if messages else ""
 
-        if last_speaker is self.user_proxy and messages[-1].get(
-            "content", ""
-        ).strip().startswith("TASK:"):
-            # Start with the search agent
-            return self.search_agent
-        elif last_speaker is self.search_agent:
-            # After search agent, user proxy executes the action
-            return self.user_proxy
-        elif last_speaker is self.user_proxy:
-            # After user proxy, critic analyzes the result
+        if last_speaker is self.user_proxy:
+            if last_message_content.strip().startswith("TASK:"):
+                return self.search_agent
             return self.critic
+        elif last_speaker is self.search_agent:
+            return self.user_proxy
         elif last_speaker is self.critic:
-            if "OK:" in messages[-1].get("content", ""):
-                # Approved solution, end the conversation
+            if "OK:" in last_message_content:
                 return None
-            # Otherwise, go back to search agent for refinement
             return self.search_agent
-        else:
-            # Default fallback
-            return self.search_agent
+        return self.search_agent
 
     def generate_reply(
         self, messages=None, sender=None, exclude=None
@@ -74,6 +66,7 @@ class SearchOrchestrator(ConversableAgent):
                 self.group_manager,
                 message=task,
                 summary_method="last_msg",
+                max_round=5,
             )
         except Exception as e:
             logging.error(f"Error during inner conversation: {e}")

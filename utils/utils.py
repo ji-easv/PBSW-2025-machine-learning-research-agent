@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-MAX_INTERNAL_ROUNDS = 5
+MAX_INTERNAL_ROUNDS = 10
 
 FINAL_ANSWER_FORMAT = """
 FINAL ANSWER FORMAT:

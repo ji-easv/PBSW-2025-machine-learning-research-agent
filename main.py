@@ -44,7 +44,7 @@ LLM_CONFIG = get_llm_config(api_key=api_key)
 
 task = """
 Find research papers on software testing that satisfy ALL of the following constraints:
-1) Published after 2020, and before 2024.
+1) Published in 2024.
 2) Have more than 10 citations.
 3) Return the top three articles, providing for each: title, authors, publication year, number of citations, and URL.
 """

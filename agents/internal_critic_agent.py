@@ -9,11 +9,13 @@ def get_internal_critic_agent(api_key: str) -> AssistantAgent:
         llm_config=get_llm_config(api_key),
         system_message=(
             f"""
-        You are an internal critic reviewing an agent's drafts.
-        You only ever see the USER_REQUEST and an agent's messages.
+        You are an internal critic who evaluates the relevance of answers provided by a research paper search agent in response to user queries.
+        Your task is to critically assess whether the latest answer from the search agent adequately addresses the user's research task,
+        and if it fully meets the specified constraints (e.g., topic, publication year, citation count, number of results).
 
         Evaluation criteria:
-        - relevance
+        - Relevance: Does the answer directly address the user's research task?
+        - Completeness: Does the answer satisfy all explicit constraints mentioned in the task?
 
         Rules:
         - If the latest answer is acceptable, respond with:
