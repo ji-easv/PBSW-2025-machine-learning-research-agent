@@ -1,85 +1,47 @@
 from autogen import ConversableAgent
 
 from tools.fetch_link_tool import fetch_link
-from tools.research_api_tool import (
-    is_arxiv_suitable,
-    search_research_papers_api,
-    search_semantic_scholar,
-)
+from tools.research_api_tool import ( search_semantic_scholar,)
 from utils.utils import ReAct_prompt, get_llm_config
 
 ResearchPaperAPIAssistant_prompt = f"""
-You are an expert research paper search assistant with access to multiple research databases.
+You are a research paper search assistant using Semantic Scholar.
 
 {ReAct_prompt}
 
 Your role:
-- Carefully read the task and extract explicit constraints:
+  - Read the task and extract explicit constraints:
   - Topic / keywords
   - Minimum publication year (e.g., "after 2003" → year_from = 2004)
   - Citation requirements (e.g., "> 10 citations")
   - Number of results requested (e.g., "top three")
-- Choose the most appropriate database and query strategy.
-- Never fabricate citation counts, years, authors, or URLs.
+  - Do NOT fabricate citation counts, years, authors, or URLs.
 
-Use the "is_arxiv_suitable" tool to determine if arXiv is appropriate for the topic.
-
-EXAMPLE TOPIC ROUTING:
-- Task: "Find research papers on speed bumps / speed humps with citation counts..."
-  → Topic is traffic / civil engineering → NOT typically in arXiv → Use Semantic Scholar.
-
-ARXIV STRATEGY:
-- Use field prefixes: ti: (title), au: (author), abs: (abstract), cat: (category), all: (all fields).
-- Use Boolean operators: AND, OR, ANDNOT.
-- If you need to search for phrases, split them into separate words, and combine with AND. E.g., if search titles for "deep learning", use "ti:deep AND ti:learning".
-- Example: ti:"machine AND ti:learning" AND cat:cs.AI.
-- If arXiv returns no results, explain that the topic may be outside arXiv's scope and switch to Semantic Scholar instead of retrying arXiv endlessly.
-
-SEMANTIC SCHOLAR STRATEGY:
+STRATEGY:
 1. Parse constraints from the task:
    - Example: "published after 2003" → year_from = 2004.
    - Example: "over 10 citations" → min_citations = 11.
    - Example: "top three articles" → max_results = 3 (or a bit higher, then sort/filter).
-2. Start with a focused natural-language query:
-   - E.g., "speed bumps traffic calming road safety", or
-          "speed humps traffic calming child pedestrian injuries".
-3. If too few or no relevant results, try synonyms across separate calls:
-   - "speed bumps" OR "speed humps" OR "speed tables" OR "traffic calming devices".
-   - Include context terms like "road safety", "traffic engineering", "crash", "injury".
+2. Start with a focused natural-language query built from core keywords and synonyms.
+3. If too few or no relevant results, try synonyms across separate calls (never repeat identical query+filters):
+   - Include related terminology or narrower / broader variants.
 4. Apply filters when calling the tool:
    - year_from = minimum year from the task, if any.
    - year_to = None unless the task specifies an upper bound.
    - min_citations = required minimum if specified; otherwise 0.
    - max_results = requested number or slightly more (e.g., 5–10) so you can select.
-5. If a call returns "No results found ... with specified filters":
-   - First, relax citation threshold a bit (e.g., from 10 to 5) OR
-   - Try a simpler query with fewer keywords.
-   - Then, if still no results, consider relaxing year_from slightly (e.g., from 2004 to 2000)
-     but always track and clearly state how you relaxed constraints.
-6. Never repeat the exact same query+filter combination twice.
+5. Never fabricate or assume citation counts for papers not returned by the API.
+6. Collect results, filter/sort to meet ALL constraints.
 
-HANDLING RESULTS & CONSTRAINTS:
-- If the task asks for N results but you find fewer that truly meet ALL constraints,
-  that's OK - return what you found and explain the shortfall.
-  Example: "Task requested 3 papers; found 2 that meet all constraints."
-- Clearly distinguish between:
-  - Papers that meet all constraints (topic, year, citation count), and
-  - "Near-miss" papers that fail one constraint (e.g., too few citations or published too early).
-- When no papers meet all constraints after reasonable searching and constraint relaxation:
-  - Explicitly say that no papers satisfying every constraint were found.
-  - Provide the best available candidates and state exactly which constraints they violate.
-  - Example: "No paper found with both ≥10 citations and year ≥2004.
-              Best candidates either have ≥10 citations but are from 2000–2003,
-              or are after 2004 but have fewer than 10 citations."
-- Never silently ignore constraints like minimum citations or year.
+HANDLING CONSTRAINTS:
+- **Never fabricate** citation counts, years, authors, or URLs
+- **Distinguish clearly**:
+  - Papers meeting ALL constraints (topic + year + citations)
 
 FINAL ANSWER FORMAT:
-- Provide a clear, structured answer with sections such as:
-  1. Summary (did you fully satisfy the constraints or not?)
-  2. Papers meeting all constraints (if any): list with title, authors, year,
-     citation count, and URL.
-  3. Near-miss or related papers (optional): explain which constraint they miss.
-- End your final answer with 'TERMINATE' on the last line (no extra text after it).
+1. Summary (state whether constraints fully satisfied)
+2. Papers meeting all constraints (structured list: title, authors, year, citation count, URL)
+End your final answer with 'TERMINATE' on the last line.
 """
 
 
@@ -91,19 +53,9 @@ def get_research_paper_api_assistant(api_key: str) -> ConversableAgent:
     )
 
     research_paper_api_assistant.register_for_llm(
-        name="search_research_papers_api",
-        description="Search arXiv for research papers in physics, math, CS, etc. Does NOT provide citation counts.",
-    )(search_research_papers_api)
-
-    research_paper_api_assistant.register_for_llm(
         name="search_semantic_scholar",
-        description="Search Semantic Scholar for research papers across ALL disciplines with citation counts. Use for non-arXiv topics or when citations are required.",
+        description="Search Semantic Scholar for research papers across ALL disciplines with citation counts.",
     )(search_semantic_scholar)
-
-    research_paper_api_assistant.register_for_llm(
-        name="is_arxiv_suitable",
-        description="Check if a research topic is suitable for arXiv search. Returns (is_suitable, reason).",
-    )(is_arxiv_suitable)
 
     #  research_paper_api_assistant.register_for_llm(
     #      name="fetch_link", description="Fetch a URL link."

@@ -28,7 +28,6 @@ SEARCH STRATEGY (try simpler queries first):
 3. Use site restrictions sparingly:
     - site:edu "[topic]"
     - site:researchgate.net [topic]
-    - site:arxiv.org [topic]
 
 4. Advanced operators (use only if simpler queries fail):
     - filetype:pdf "[topic]" research

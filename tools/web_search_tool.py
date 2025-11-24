@@ -43,7 +43,6 @@ def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
 
     Site-specific search:
         - site:edu [your topic] - search only educational sites
-        - site:arxiv.org [your topic] - search only arxiv.org
         - site:researchgate.net [your topic] - search ResearchGate
 
     Combine operators:
@@ -62,7 +61,6 @@ def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
         - "CRISPR gene editing" site:edu filetype:pdf
         - quantum computing algorithms -tutorial
         - "climate change models" 2023 site:nature.com
-        - protein folding site:arxiv.org
 
     Args:
         query: Search query (supports syntax above)

@@ -2,8 +2,6 @@ from autogen import UserProxyAgent
 
 from tools.fetch_link_tool import fetch_link
 from tools.research_api_tool import (
-    is_arxiv_suitable,
-    search_research_papers_api,
     search_semantic_scholar,
 )
 from tools.web_search_tool import search_web
@@ -29,16 +27,8 @@ def get_user_proxy(executor: DockerCommandLineCodeExecutor) -> UserProxyAgent:
     )(search_web)
 
     user_proxy.register_for_execution(
-        name="search_research_papers_api",
-    )(search_research_papers_api)
-
-    user_proxy.register_for_execution(
         name="search_semantic_scholar",
     )(search_semantic_scholar)
-
-    user_proxy.register_for_execution(
-        name="is_arxiv_suitable",
-    )(is_arxiv_suitable)
 
     # user_proxy.register_for_execution(
     #   name="fetch_link", description="Fetch a URL link."
