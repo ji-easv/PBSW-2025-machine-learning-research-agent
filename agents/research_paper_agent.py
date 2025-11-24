@@ -1,6 +1,11 @@
 from autogen import ConversableAgent
 
-from tools.research_api_tool import is_arxiv_suitable, search_research_papers_api, search_semantic_scholar
+from tools.fetch_link_tool import fetch_link
+from tools.research_api_tool import (
+    is_arxiv_suitable,
+    search_research_papers_api,
+    search_semantic_scholar,
+)
 from utils import ReAct_prompt, get_llm_config
 
 ResearchPaperAPIAssistant_prompt = f"""
@@ -116,5 +121,9 @@ def get_research_paper_api_assistant(api_key: str) -> ConversableAgent:
         name="is_arxiv_suitable",
         description="Check if a research topic is suitable for arXiv search. Returns (is_suitable, reason).",
     )(is_arxiv_suitable)
+
+    research_paper_api_assistant.register_for_llm(
+        name="fetch_link", description="Fetch a URL link."
+    )(fetch_link)
 
     return research_paper_api_assistant

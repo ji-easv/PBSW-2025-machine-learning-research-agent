@@ -1,7 +1,11 @@
+import logging
+from typing import List
 from ddgs import DDGS
 
+from datamodel.search_result import SearchResult
 
-def search_web(query: str, num_results: int = 10) -> str:
+
+def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
     """
     Search the web using DuckDuckGo.
 
@@ -45,17 +49,13 @@ def search_web(query: str, num_results: int = 10) -> str:
     """
     try:
 
-        results = []
+        results: List[SearchResult] = []
         with DDGS() as ddgs:
             search_results = list(ddgs.text(query, max_results=num_results))
 
             if not search_results:
-                return (
-                    f"No results found for query: '{query}'. "
-                    "Consider trying simpler keywords, synonyms, or domain filters "
-                    "(e.g., site:edu, site:gov), or using a research-specific API if "
-                    "you need academic papers."
-                )
+                logging.warning("No results found for query: '%s'.", query)
+                return []
 
             for i, result in enumerate(search_results, 1):
                 title = result.get("title", "No title")
@@ -64,11 +64,12 @@ def search_web(query: str, num_results: int = 10) -> str:
                     "body", result.get("description", "No description")
                 )
 
-                results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
+                results.append(
+                    SearchResult(query=query, title=title, url=url, snippet=snippet)
+                )
 
-        return "\n".join(results)
+        return results
 
-    except ImportError:
-        return "Error: ddgs library not installed. Run: pip install ddgs"
     except Exception as e:
-        return f"Error searching DuckDuckGo: {str(e)}"
+        logging.error("Error searching DuckDuckGo: %s", str(e))
+        return []

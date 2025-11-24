@@ -9,6 +9,10 @@ from agents.user_proxy_agent import get_user_proxy
 from agents.web_search_agent import get_web_search_assistant
 from autogen.coding import DockerCommandLineCodeExecutor
 
+import logging
+
+logging.basicConfig(format="%(levelname)s:%(asctime)s:%(message)s", level=logging.INFO)
+
 # Set UTF-8 encoding for Windows console to handle Unicode characters
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -18,7 +22,6 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8")
 from autogen import (
     AssistantAgent,
-    UserProxyAgent,
 )
 
 from utils import (
@@ -127,12 +130,10 @@ def main():
         "publication year, number of citations, and URL."
     )
 
-    print("\n" + "=" * 80)
-    print("TASK:", task)
-    print("=" * 80 + "\n")
+    logging.info("Starting evaluation for task:\n%s", task)
 
     # Run research paper API assistant
-    print(">>> Starting Research Paper API Assistant...")
+    logging.info("Starting Research Paper API Assistant...")
     paper_result = user_proxy.initiate_chat(
         research_paper_api_assistant,
         message=f"Task: {task}",
@@ -141,14 +142,14 @@ def main():
     paper_content = extract_result_content(paper_result)
 
     # Run web search assistant
-    print("\n>>> Starting Web Search Assistant...")
+    logging.info("Starting Web Search Assistant...")
     web_result = user_proxy.initiate_chat(
         web_search_assistant, message=f"Task: {task}", max_turns=10
     )
     web_content = extract_result_content(web_result)
 
     # Judge evaluates both results
-    print("\n>>> Starting Judge Evaluation...")
+    logging.info("Starting Judge Evaluation...")
     judge_result = user_proxy.initiate_chat(
         judge,
         message=f"""Evaluate the performance of the research agents:
@@ -216,7 +217,7 @@ Last updated: {timestamp}
 """
 
     results_file.write_text(content, encoding="utf-8")
-    print(f"\nResults saved to: {results_file.absolute()}")
+    logging.info("Results saved to: %s", results_file.absolute())
 
     # Also save a JSON version for programmatic access
     json_file = results_dir / "latest_results.json"
@@ -230,7 +231,7 @@ Last updated: {timestamp}
     json_file.write_text(
         json.dumps(json_data, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    print(f"JSON results saved to: {json_file.absolute()}")
+    logging.info("JSON results saved to: %s", json_file.absolute())
 
 
 if __name__ == "__main__":

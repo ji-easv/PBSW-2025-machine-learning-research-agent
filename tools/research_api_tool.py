@@ -1,6 +1,9 @@
+import logging
 import requests
 import xml.etree.ElementTree as ET
-from typing import List, Tuple, Optional
+from typing import List
+
+from datamodel.search_result import SearchResult
 
 
 # arXiv subject categories and related keywords
@@ -160,7 +163,7 @@ NON_ARXIV_TOPICS = [
 ]
 
 
-def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
+def is_arxiv_suitable(query: str) -> bool:
     """
     Determine if a research topic is likely to be found in arXiv.
 
@@ -178,10 +181,7 @@ def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
     # Check for explicitly non-arXiv topics
     for non_topic in NON_ARXIV_TOPICS:
         if non_topic in query_lower:
-            return (
-                False,
-                f"Topic '{non_topic}' is not typically covered by arXiv (which focuses on physics, math, CS, etc.)",
-            )
+            return False
 
     # Check for arXiv-suitable topics
     matching_subjects = []
@@ -192,13 +192,10 @@ def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
                 break
 
     if matching_subjects:
-        return True, f"Topic matches arXiv subjects: {', '.join(matching_subjects)}"
+        return True
 
     # If no clear match, default to uncertain (will try arXiv but with low confidence)
-    return (
-        None,
-        "Topic may or may not be in arXiv - suggest trying web search or Semantic Scholar as a primary method",
-    )
+    return False
 
 
 api_base_url = "https://export.arxiv.org/api/query"
@@ -209,7 +206,7 @@ def search_research_papers_api(
     max_results: int = 10,
     sort_by: str = "relevance",
     sort_order: str = "descending",
-) -> str:
+) -> List[SearchResult]:
     """
     Search arXiv for research papers.
 
@@ -264,15 +261,10 @@ def search_research_papers_api(
         entries = root.findall("atom:entry", ns)
 
         if total_count == 0 or not entries:
-            return (
-                f"No results found for query: '{query}'. "
-                "This topic may be outside arXiv's typical subject areas "
-                "(physics, math, CS, etc.). Consider using Semantic Scholar or "
-                "a general web search for this topic."
-            )
+            return []
 
         # Format results
-        results = [f"Found {total_count} total results. Showing top {len(entries)}:\n"]
+        results: List[SearchResult] = []
 
         for i, entry in enumerate(entries, 1):
             title = entry.find("atom:title", ns)
@@ -287,10 +279,6 @@ def search_research_papers_api(
                 name_elem = a.find("atom:name", ns)
                 if name_elem is not None and name_elem.text:
                     author_names.append(name_elem.text)
-
-            authors_text = ", ".join(author_names[:3])  # First 3 authors
-            if len(author_names) > 3:
-                authors_text += f" et al. ({len(author_names)} total)"
 
             # Get published date
             published = entry.find("atom:published", ns)
@@ -310,36 +298,31 @@ def search_research_papers_api(
             if summary is not None and summary.text:
                 summary_text = summary.text.strip()[:200] + "..."
 
-            # Get primary category
-            primary_cat = entry.find("arxiv:primary_category", ns)
-            category = primary_cat.get("term") if primary_cat is not None else "Unknown"
-
-            # Get PDF link
-            pdf_link = None
-            for link in entry.findall("atom:link", ns):
-                if link.get("title") == "pdf":
-                    pdf_link = link.get("href")
-                    break
-
             results.append(
-                f"\n{i}. {title_text}\n"
-                f"   Authors: {authors_text}\n"
-                f"   Published: {pub_date}\n"
-                f"   arXiv ID: {arxiv_id}\n"
-                f"   Category: {category}\n"
-                f"   URL: https://arxiv.org/abs/{arxiv_id}\n"
-                f"   PDF: {pdf_link or 'N/A'}\n"
-                f"   Abstract: {summary_text}\n"
+                SearchResult(
+                    query=query,
+                    url=f"https://arxiv.org/abs/{arxiv_id}",
+                    title=title_text,
+                    snippet=summary_text,
+                    authors=author_names,
+                    publication_year=(
+                        int(pub_date[:4]) if pub_date != "Unknown" else None
+                    ),
+                    citations=None,  # arXiv does not provide citation counts
+                )
             )
 
-        return "\n".join(results)
+        return results
 
     except requests.exceptions.RequestException as e:
-        return f"Error accessing arXiv API: {str(e)}\nPlease try again later."
+        logging.error("Error accessing arXiv API: %s", str(e))
+        return []
     except ET.ParseError as e:
-        return f"Error parsing arXiv response: {str(e)}\nThe API may have returned invalid data."
+        logging.error("Error parsing arXiv response: %s", str(e))
+        return []
     except Exception as e:
-        return f"Unexpected error: {str(e)}"
+        logging.error("Unexpected error: %s", str(e))
+        return []
 
 
 def search_semantic_scholar(
@@ -349,7 +332,7 @@ def search_semantic_scholar(
     year_to: int | None = None,
     max_results: int = 10,
     fields_of_study: List[str] | None = None,
-) -> str:
+) -> List[SearchResult]:
     """
     Search Semantic Scholar for research papers with citation data.
 
@@ -409,20 +392,29 @@ def search_semantic_scholar(
         data = response.json()
 
         if "data" not in data or not data["data"]:
-            return (
-                f"No results found for query: '{query}' with specified filters. "
-                f"Filters used: year={year_filter_desc}, min_citations={min_citations}, "
-                f"max_results={max_results}. Consider broadening the query, relaxing "
-                f"the citation threshold, or widening the year range."
+            logging.warning(
+                "No results found for query: '%s' with filters year=%s, min_citations=%d, max_results=%d.",
+                query,
+                year_filter_desc,
+                min_citations,
+                max_results,
             )
+
+            return []
 
         papers = data["data"]
         total = data.get("total", len(papers))
 
         header_filters = f"year={year_filter_desc}, min_citations={min_citations}, max_results={max_results}"
-        results = [
-            f"Found {total} total results. Showing top {len(papers)} (filters: {header_filters}):\n"
-        ]
+
+        logging.info(
+            "Found %d total results. Showing top %d (filters: %s).",
+            total,
+            len(papers),
+            header_filters,
+        )
+
+        results: List[SearchResult] = []
 
         for i, paper in enumerate(papers, 1):
             title = paper.get("title", "No title")
@@ -439,35 +431,28 @@ def search_semantic_scholar(
             # Get URL
             url = paper.get("url", "N/A")
 
-            # Get DOI if available
-            external_ids = paper.get("externalIds", {})
-            doi = external_ids.get("DOI", "N/A")
-
             # Get abstract
             abstract = paper.get("abstract", "No abstract available")
             if abstract and len(abstract) > 200:
                 abstract = abstract[:200] + "..."
 
-            # Get fields of study
-            fields = paper.get("fieldsOfStudy", [])
-            fields_text = ", ".join(fields) if fields else "Unknown"
-
             results.append(
-                f"\n{i}. {title}\n"
-                f"   Authors: {authors_text}\n"
-                f"   Year: {year}\n"
-                f"   Citations: {citations}\n"
-                f"   Fields: {fields_text}\n"
-                f"   URL: {url}\n"
-                f"   DOI: {doi}\n"
-                f"   Abstract: {abstract}\n"
+                SearchResult(
+                    query=query,
+                    url=url,
+                    title=title,
+                    snippet=abstract,
+                    authors=author_names,
+                    publication_year=year if isinstance(year, int) else None,
+                    citations=citations,
+                )
             )
 
-        return "\n".join(results)
+        return results
 
     except requests.exceptions.RequestException as e:
-        return (
-            f"Error accessing Semantic Scholar API: {str(e)}\nPlease try again later."
-        )
+        logging.error("Error accessing Semantic Scholar API: %s", str(e))
+        return []
     except Exception as e:
-        return f"Unexpected error: {str(e)}"
+        logging.error("Unexpected error: %s", str(e))
+        return []

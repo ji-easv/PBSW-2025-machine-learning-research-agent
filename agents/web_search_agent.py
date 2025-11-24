@@ -1,4 +1,5 @@
 from autogen import ConversableAgent
+from tools.fetch_link_tool import fetch_link
 from tools.web_search_tool import search_web
 from utils import ReAct_prompt, get_llm_config
 
@@ -78,5 +79,9 @@ def get_web_search_assistant(api_key: str) -> ConversableAgent:
         name="search_web",
         description="This tool allows you to search the web for information relevant to user queries.",
     )(search_web)
+
+    web_search_assistant.register_for_llm(
+        name="fetch_link", description="Fetch a URL link."
+    )(fetch_link)
 
     return web_search_assistant
