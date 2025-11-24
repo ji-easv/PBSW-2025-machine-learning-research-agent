@@ -6,7 +6,7 @@ MAX_INTERNAL_ROUNDS = 10
 FINAL_ANSWER_FORMAT = """
 FINAL ANSWER FORMAT:
 When you have gathered results satisfying all constraints, respond with:
-RESULTS:
+RESULT:
 <list of papers in the format:>
 1. Title: <title>
    Authors: <authors>

@@ -1,4 +1,4 @@
-from autogen import ConversableAgent
+from autogen import AssistantAgent
 
 from tools.research_api_tool import (
     search_semantic_scholar,
@@ -28,8 +28,8 @@ Your role:
 """
 
 
-def get_research_paper_api_agent(api_key: str) -> ConversableAgent:
-    research_paper_api_agent = ConversableAgent(
+def get_research_paper_api_agent(api_key: str) -> AssistantAgent:
+    research_paper_api_agent = AssistantAgent(
         name="ResearchPaperAPIAgent",
         llm_config=get_llm_config(api_key=api_key),
         system_message=ResearchPaperAPIAgent_prompt,

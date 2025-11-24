@@ -1,4 +1,4 @@
-from autogen import ConversableAgent
+from autogen import AssistantAgent
 from tools.fetch_link_tool import fetch_link
 from tools.web_search_tool import search_web
 from utils.utils import FINAL_ANSWER_FORMAT, get_llm_config
@@ -59,8 +59,8 @@ HANDLING RESULTS:
 """
 
 
-def get_web_search_agent(api_key: str) -> ConversableAgent:
-    web_search_agent = ConversableAgent(
+def get_web_search_agent(api_key: str) -> AssistantAgent:
+    web_search_agent = AssistantAgent(
         name="WebSearchAgent",
         llm_config=get_llm_config(api_key=api_key),
         system_message=WebSearchAgent_prompt,
