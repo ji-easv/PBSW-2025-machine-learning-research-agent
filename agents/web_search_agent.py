@@ -80,8 +80,8 @@ def get_web_search_assistant(api_key: str) -> ConversableAgent:
         description="This tool allows you to search the web for information relevant to user queries.",
     )(search_web)
 
-    web_search_assistant.register_for_llm(
-        name="fetch_link", description="Fetch a URL link."
-    )(fetch_link)
+    # web_search_assistant.register_for_llm(
+    #    name="fetch_link", description="Fetch a URL link."
+    # )(fetch_link)
 
     return web_search_assistant

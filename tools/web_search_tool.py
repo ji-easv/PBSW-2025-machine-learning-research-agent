@@ -1,15 +1,36 @@
 import logging
+import re
 from typing import List
 from ddgs import DDGS
 
 from datamodel.search_result import SearchResult
 
 
+def is_blocked_content(results: list) -> bool:
+    block_patterns = [
+        r"verify you are human",
+        r"captcha",
+        r"robot check",
+        r"unusual traffic",
+        r"please enable cookies",
+        r"access denied",
+    ]
+    for result in results:
+        if result.get("title") or result.get("href") or result.get("body"):
+            for field in ("title", "href", "body", "description"):
+                value = result.get(field, "")
+                for pattern in block_patterns:
+                    if re.search(pattern, str(value), re.IGNORECASE):
+                        return True
+            # If at least one result looks normal, not blocked
+            return False
+    # If all results are empty or suspicious, treat as blocked
+    return True
+
+
 def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
     """
-    Search the web using DuckDuckGo.
-
-    Supports advanced search syntax:
+    Search the web. Supports advanced search syntax:
 
     Exact phrases:
         - Use quotes: "[your topic]" - searches for the exact phrase
@@ -51,25 +72,24 @@ def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
 
         results: List[SearchResult] = []
         with DDGS() as ddgs:
-            search_results = list(ddgs.text(query, max_results=num_results))
+            content = ddgs.text(query, max_results=num_results, backend="mojeek")
 
-            if not search_results:
-                logging.warning("No results found for query: '%s'.", query)
+            if is_blocked_content(content):
+                logging.error("Search blocked by Brave. Detected bot protection.")
                 return []
 
-            for i, result in enumerate(search_results, 1):
-                title = result.get("title", "No title")
-                url = result.get("href", result.get("link", "No URL"))
-                snippet = result.get(
-                    "body", result.get("description", "No description")
-                )
-
+            for result in content:
                 results.append(
-                    SearchResult(query=query, title=title, url=url, snippet=snippet)
+                    SearchResult(
+                        query=query,
+                        title=result["title"],
+                        url=result["href"],
+                        snippet=result["body"],
+                    )
                 )
 
         return results
 
     except Exception as e:
-        logging.error("Error searching DuckDuckGo: %s", str(e))
+        logging.error("Error searching the web: %s", str(e))
         return []

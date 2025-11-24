@@ -1,4 +1,5 @@
 import logging
+from typing_extensions import Literal
 import requests
 import xml.etree.ElementTree as ET
 from typing import List
@@ -204,8 +205,8 @@ api_base_url = "https://export.arxiv.org/api/query"
 def search_research_papers_api(
     query: str,
     max_results: int = 10,
-    sort_by: str = "relevance",
-    sort_order: str = "descending",
+    sort_by: Literal["relevance", "lastUpdatedDate", "submittedDate"] = "relevance",
+    sort_order: Literal["ascending", "descending"] = "descending",
 ) -> List[SearchResult]:
     """
     Search arXiv for research papers.
@@ -217,9 +218,10 @@ def search_research_papers_api(
                - abs: (abstract)
                - cat: (category)
                - all: (all fields)
-               Examples: "ti:quantum computing AND cat:quant-ph"
-                        "au:Hinton AND ti:neural networks"
-                        "abs:reinforcement learning"
+               Examples: "ti:quantum AND ti:computing AND cat:quant-ph"
+                        "au:Hinton AND ti:neural AND ti:networks"
+                        "abs:reinforcement AND abs:learning"
+
         max_results: Number of results to return (default: 10)
         sort_by: Sort by "relevance", "lastUpdatedDate", or "submittedDate"
         sort_order: "ascending" or "descending"
@@ -227,102 +229,89 @@ def search_research_papers_api(
     Returns:
         Formatted string with parsed paper information or helpful error message
     """
-    try:
-        params = {
-            "search_query": query,
-            "start": 0,
-            "max_results": max_results,
-            "sortBy": sort_by,
-            "sortOrder": sort_order,
-        }
+    params = {
+        "search_query": query,
+        "start": 0,
+        "max_results": max_results,
+        "sortBy": sort_by,
+        "sortOrder": sort_order,
+    }
 
-        response = requests.get(api_base_url, params=params, timeout=30)
-        response.raise_for_status()
+    response = requests.get(api_base_url, params=params, timeout=30)
+    response.raise_for_status()
 
-        # Parse XML response
-        root = ET.fromstring(response.text)
+    # Parse XML response
+    root = ET.fromstring(response.text)
 
-        # Define namespaces
-        ns = {
-            "atom": "http://www.w3.org/2005/Atom",
-            "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
-            "arxiv": "http://arxiv.org/schemas/atom",
-        }
+    # Define namespaces
+    ns = {
+        "atom": "http://www.w3.org/2005/Atom",
+        "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
+        "arxiv": "http://arxiv.org/schemas/atom",
+    }
 
-        # Get total results
-        total_results = root.find("opensearch:totalResults", ns)
-        total_count = (
-            int(total_results.text)
-            if total_results is not None and total_results.text
-            else 0
+    # Get total results
+    total_results = root.find("opensearch:totalResults", ns)
+    total_count = (
+        int(total_results.text)
+        if total_results is not None and total_results.text
+        else 0
+    )
+
+    # Get entries
+    entries = root.findall("atom:entry", ns)
+
+    if total_count == 0 or not entries:
+        return []
+
+    # Format results
+    results: List[SearchResult] = []
+
+    for i, entry in enumerate(entries, 1):
+        title = entry.find("atom:title", ns)
+        title_text = "No title"
+        if title is not None and title.text:
+            title_text = title.text.strip().replace("\n", " ")
+
+        # Get authors
+        authors = entry.findall("atom:author", ns)
+        author_names: List[str] = []
+        for a in authors:
+            name_elem = a.find("atom:name", ns)
+            if name_elem is not None and name_elem.text:
+                author_names.append(name_elem.text)
+
+        # Get published date
+        published = entry.find("atom:published", ns)
+        pub_date = "Unknown"
+        if published is not None and published.text:
+            pub_date = published.text[:10]
+
+        # Get arXiv ID
+        id_elem = entry.find("atom:id", ns)
+        arxiv_id = "Unknown"
+        if id_elem is not None and id_elem.text:
+            arxiv_id = id_elem.text.replace("http://arxiv.org/abs/", "")
+
+        # Get summary (abstract)
+        summary = entry.find("atom:summary", ns)
+        summary_text = "No abstract"
+        if summary is not None and summary.text:
+            summary_text = summary.text.strip()[:200] + "..."
+
+        results.append(
+            SearchResult(
+                query=response.url,
+                url=f"https://arxiv.org/abs/{arxiv_id}",
+                title=title_text,
+                snippet=summary_text,
+                authors=author_names,
+                publication_year=(int(pub_date[:4]) if pub_date != "Unknown" else None),
+                citations=None,  # arXiv does not provide citation counts
+            )
         )
 
-        # Get entries
-        entries = root.findall("atom:entry", ns)
-
-        if total_count == 0 or not entries:
-            return []
-
-        # Format results
-        results: List[SearchResult] = []
-
-        for i, entry in enumerate(entries, 1):
-            title = entry.find("atom:title", ns)
-            title_text = "No title"
-            if title is not None and title.text:
-                title_text = title.text.strip().replace("\n", " ")
-
-            # Get authors
-            authors = entry.findall("atom:author", ns)
-            author_names: List[str] = []
-            for a in authors:
-                name_elem = a.find("atom:name", ns)
-                if name_elem is not None and name_elem.text:
-                    author_names.append(name_elem.text)
-
-            # Get published date
-            published = entry.find("atom:published", ns)
-            pub_date = "Unknown"
-            if published is not None and published.text:
-                pub_date = published.text[:10]
-
-            # Get arXiv ID
-            id_elem = entry.find("atom:id", ns)
-            arxiv_id = "Unknown"
-            if id_elem is not None and id_elem.text:
-                arxiv_id = id_elem.text.replace("http://arxiv.org/abs/", "")
-
-            # Get summary (abstract)
-            summary = entry.find("atom:summary", ns)
-            summary_text = "No abstract"
-            if summary is not None and summary.text:
-                summary_text = summary.text.strip()[:200] + "..."
-
-            results.append(
-                SearchResult(
-                    query=query,
-                    url=f"https://arxiv.org/abs/{arxiv_id}",
-                    title=title_text,
-                    snippet=summary_text,
-                    authors=author_names,
-                    publication_year=(
-                        int(pub_date[:4]) if pub_date != "Unknown" else None
-                    ),
-                    citations=None,  # arXiv does not provide citation counts
-                )
-            )
-
-        return results
-
-    except requests.exceptions.RequestException as e:
-        logging.error("Error accessing arXiv API: %s", str(e))
-        return []
-    except ET.ParseError as e:
-        logging.error("Error parsing arXiv response: %s", str(e))
-        return []
-    except Exception as e:
-        logging.error("Unexpected error: %s", str(e))
-        return []
+    return results
 
 
 def search_semantic_scholar(

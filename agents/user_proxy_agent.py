@@ -40,8 +40,8 @@ def get_user_proxy(executor: DockerCommandLineCodeExecutor) -> UserProxyAgent:
         name="is_arxiv_suitable",
     )(is_arxiv_suitable)
 
-    user_proxy.register_for_execution(
-        name="fetch_link", description="Fetch a URL link."
-    )(fetch_link)
+    # user_proxy.register_for_execution(
+    #   name="fetch_link", description="Fetch a URL link."
+    # )(fetch_link)
 
     return user_proxy

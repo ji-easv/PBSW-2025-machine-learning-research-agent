@@ -11,6 +11,8 @@ from autogen.coding import DockerCommandLineCodeExecutor
 
 import logging
 
+from tools.web_search_tool import search_web
+
 logging.basicConfig(format="%(levelname)s:%(asctime)s:%(message)s", level=logging.INFO)
 
 # Set UTF-8 encoding for Windows console to handle Unicode characters
@@ -121,9 +123,7 @@ def extract_result_content(chat_result) -> str:
 
 def main():
     task = (
-        "Find research papers on speed bumps (including synonyms such as speed humps, "
-        "speed tables, or traffic calming devices) that satisfy ALL of the following "
-        "constraints:\n"
+        "Find research papers on software testing that satisfy ALL of the following constraints:\n"
         "1) Published after 2003 (i.e., year >= 2004).\n"
         "2) Have more than 10 citations.\n"
         "3) Return the top three articles, providing for each: title, authors, "
