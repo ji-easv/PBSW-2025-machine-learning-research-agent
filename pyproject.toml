@@ -8,6 +8,7 @@ dependencies = [
     "autogen==0.10.0",
     "autogen-ext[docker]>=0.7.5",
     "beautifulsoup4>=4.14.2",
+    "ddgs>=9.9.1",
     "dotenv==0.9.9",
     "fix-busted-json==0.0.18",
     "mistralai==1.9.11",

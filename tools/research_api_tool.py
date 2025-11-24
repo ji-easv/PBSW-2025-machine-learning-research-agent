@@ -6,52 +6,157 @@ from typing import List, Tuple, Optional
 # arXiv subject categories and related keywords
 ARXIV_SUBJECTS = {
     "physics": [
-        "physics", "astrophysics", "astronomy", "cosmology", "relativity", "quantum",
-        "particle", "nuclear", "plasma", "optics", "fluid dynamics", "thermodynamics",
-        "mechanics", "electromagnetism", "condensed matter", "superconductivity",
-        "photonics", "acoustics", "waves", "gravity"
+        "physics",
+        "astrophysics",
+        "astronomy",
+        "cosmology",
+        "relativity",
+        "quantum",
+        "particle",
+        "nuclear",
+        "plasma",
+        "optics",
+        "fluid dynamics",
+        "thermodynamics",
+        "mechanics",
+        "electromagnetism",
+        "condensed matter",
+        "superconductivity",
+        "photonics",
+        "acoustics",
+        "waves",
+        "gravity",
     ],
     "mathematics": [
-        "mathematics", "algebra", "geometry", "topology", "calculus", "analysis",
-        "number theory", "combinatorics", "optimization", "probability", "statistics",
-        "differential equations", "numerical methods", "graph theory", "logic",
-        "mathematical modeling"
+        "mathematics",
+        "algebra",
+        "geometry",
+        "topology",
+        "calculus",
+        "analysis",
+        "number theory",
+        "combinatorics",
+        "optimization",
+        "probability",
+        "statistics",
+        "differential equations",
+        "numerical methods",
+        "graph theory",
+        "logic",
+        "mathematical modeling",
     ],
     "computer_science": [
-        "computer science", "machine learning", "artificial intelligence", "deep learning",
-        "neural network", "algorithm", "data structure", "programming", "software",
-        "computer vision", "natural language processing", "nlp", "robotics", "cryptography",
-        "cybersecurity", "database", "distributed systems", "networking", "graphics",
-        "human computer interaction", "information retrieval", "computational"
+        "computer science",
+        "machine learning",
+        "artificial intelligence",
+        "deep learning",
+        "neural network",
+        "algorithm",
+        "data structure",
+        "programming",
+        "software",
+        "computer vision",
+        "natural language processing",
+        "nlp",
+        "robotics",
+        "cryptography",
+        "cybersecurity",
+        "database",
+        "distributed systems",
+        "networking",
+        "graphics",
+        "human computer interaction",
+        "information retrieval",
+        "computational",
     ],
     "quantitative_biology": [
-        "biology", "genomics", "bioinformatics", "molecular", "cellular", "neuroscience",
-        "ecology", "evolution", "population genetics", "systems biology", "proteomics",
-        "biophysics", "computational biology"
+        "biology",
+        "genomics",
+        "bioinformatics",
+        "molecular",
+        "cellular",
+        "neuroscience",
+        "ecology",
+        "evolution",
+        "population genetics",
+        "systems biology",
+        "proteomics",
+        "biophysics",
+        "computational biology",
     ],
     "quantitative_finance": [
-        "finance", "economics", "financial modeling", "portfolio", "risk management",
-        "derivatives", "trading", "market", "econometrics", "financial mathematics"
+        "finance",
+        "economics",
+        "financial modeling",
+        "portfolio",
+        "risk management",
+        "derivatives",
+        "trading",
+        "market",
+        "econometrics",
+        "financial mathematics",
     ],
     "statistics": [
-        "statistics", "statistical", "bayesian", "inference", "regression",
-        "time series", "multivariate", "hypothesis testing", "sampling",
-        "statistical learning", "data analysis"
+        "statistics",
+        "statistical",
+        "bayesian",
+        "inference",
+        "regression",
+        "time series",
+        "multivariate",
+        "hypothesis testing",
+        "sampling",
+        "statistical learning",
+        "data analysis",
     ],
     "electrical_engineering": [
-        "signal processing", "image processing", "audio processing", "control systems",
-        "electrical engineering", "circuits", "telecommunications", "radar"
-    ]
+        "signal processing",
+        "image processing",
+        "audio processing",
+        "control systems",
+        "electrical engineering",
+        "circuits",
+        "telecommunications",
+        "radar",
+    ],
 }
 
 # Topics NOT typically in arXiv
 NON_ARXIV_TOPICS = [
-    "civil engineering", "mechanical engineering", "traffic", "road", "transportation",
-    "construction", "architecture", "urban planning", "speed bump", "speed hump",
-    "medicine", "clinical", "health", "disease", "treatment", "therapy", "patient",
-    "psychology", "sociology", "anthropology", "education", "business", "management",
-    "marketing", "accounting", "law", "political science", "history", "literature",
-    "chemistry", "materials science", "aerospace", "automotive", "manufacturing"
+    "civil engineering",
+    "mechanical engineering",
+    "traffic",
+    "road",
+    "transportation",
+    "construction",
+    "architecture",
+    "urban planning",
+    "speed bump",
+    "speed hump",
+    "medicine",
+    "clinical",
+    "health",
+    "disease",
+    "treatment",
+    "therapy",
+    "patient",
+    "psychology",
+    "sociology",
+    "anthropology",
+    "education",
+    "business",
+    "management",
+    "marketing",
+    "accounting",
+    "law",
+    "political science",
+    "history",
+    "literature",
+    "chemistry",
+    "materials science",
+    "aerospace",
+    "automotive",
+    "manufacturing",
 ]
 
 
@@ -73,7 +178,10 @@ def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
     # Check for explicitly non-arXiv topics
     for non_topic in NON_ARXIV_TOPICS:
         if non_topic in query_lower:
-            return False, f"Topic '{non_topic}' is not typically covered by arXiv (which focuses on physics, math, CS, etc.)"
+            return (
+                False,
+                f"Topic '{non_topic}' is not typically covered by arXiv (which focuses on physics, math, CS, etc.)",
+            )
 
     # Check for arXiv-suitable topics
     matching_subjects = []
@@ -87,79 +195,10 @@ def is_arxiv_suitable(query: str) -> Tuple[Optional[bool], str]:
         return True, f"Topic matches arXiv subjects: {', '.join(matching_subjects)}"
 
     # If no clear match, default to uncertain (will try arXiv but with low confidence)
-    return None, "Topic may or may not be in arXiv - suggest trying web search or Semantic Scholar as a primary method"
-
-
-def search_web(query: str, num_results: int = 10) -> str:
-    """
-    Search the web using DuckDuckGo.
-
-    Supports advanced search syntax:
-
-    Exact phrases:
-        - Use quotes: "[your topic]" - searches for the exact phrase
-
-    Exclude words:
-        - Use minus: [topic] -[unwanted term] - excludes results with unwanted terms
-
-    Site-specific search:
-        - site:edu [your topic] - search only educational sites
-        - site:arxiv.org [your topic] - search only arxiv.org
-        - site:researchgate.net [your topic] - search ResearchGate
-
-    Combine operators:
-        - "[exact phrase]" site:edu -opinion - exact phrase, only .edu sites, no opinion pieces
-
-    File type search:
-        - [topic] filetype:pdf - search for PDF files only
-        - research filetype:pdf site:edu - PDFs from educational sites
-
-    Time-based (add year to query):
-        - [topic] research 2020 - likely to return results from that year
-        - "[topic]" 2024 - recent results
-
-    Examples (diverse research domains):
-        - "neural networks" deep learning 2024
-        - "CRISPR gene editing" site:edu filetype:pdf
-        - quantum computing algorithms -tutorial
-        - "climate change models" 2023 site:nature.com
-        - protein folding site:arxiv.org
-
-    Args:
-        query: Search query (supports syntax above)
-        num_results: Maximum number of results to return (default: 10)
-
-    Returns:
-        Formatted string with search results including titles, URLs, and snippets.
-    """
-    try:
-        from ddgs import DDGS
-
-        results = []
-        with DDGS() as ddgs:
-            search_results = list(ddgs.text(query, max_results=num_results))
-
-            if not search_results:
-                return (
-                    f"No results found for query: '{query}'. "
-                    "Consider trying simpler keywords, synonyms, or domain filters "
-                    "(e.g., site:edu, site:gov), or using a research-specific API if "
-                    "you need academic papers."
-                )
-
-            for i, result in enumerate(search_results, 1):
-                title = result.get('title', 'No title')
-                url = result.get('href', result.get('link', 'No URL'))
-                snippet = result.get('body', result.get('description', 'No description'))
-
-                results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
-
-        return "\n".join(results)
-
-    except ImportError:
-        return "Error: ddgs library not installed. Run: pip install ddgs"
-    except Exception as e:
-        return f"Error searching DuckDuckGo: {str(e)}"
+    return (
+        None,
+        "Topic may or may not be in arXiv - suggest trying web search or Semantic Scholar as a primary method",
+    )
 
 
 api_base_url = "https://export.arxiv.org/api/query"
@@ -306,10 +345,10 @@ def search_research_papers_api(
 def search_semantic_scholar(
     query: str,
     min_citations: int = 0,
-    year_from: int = None,
-    year_to: int = None,
+    year_from: int | None = None,
+    year_to: int | None = None,
     max_results: int = 10,
-    fields_of_study: List[str] = None,
+    fields_of_study: List[str] | None = None,
 ) -> str:
     """
     Search Semantic Scholar for research papers with citation data.
@@ -427,6 +466,8 @@ def search_semantic_scholar(
         return "\n".join(results)
 
     except requests.exceptions.RequestException as e:
-        return f"Error accessing Semantic Scholar API: {str(e)}\nPlease try again later."
+        return (
+            f"Error accessing Semantic Scholar API: {str(e)}\nPlease try again later."
+        )
     except Exception as e:
         return f"Unexpected error: {str(e)}"
