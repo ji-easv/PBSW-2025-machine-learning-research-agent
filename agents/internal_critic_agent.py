@@ -1,6 +1,6 @@
 from autogen import AssistantAgent
 
-from utils import get_llm_config
+from utils.utils import get_llm_config
 
 
 def get_internal_critic_agent(api_key: str, evaluation_criteria: str) -> AssistantAgent:

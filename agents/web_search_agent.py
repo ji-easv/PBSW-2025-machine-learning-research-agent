@@ -1,7 +1,7 @@
 from autogen import ConversableAgent
 from tools.fetch_link_tool import fetch_link
 from tools.web_search_tool import search_web
-from utils import ReAct_prompt, get_llm_config
+from utils.utils import ReAct_prompt, get_llm_config
 
 WebSearchAssistant_prompt = f"""
 You are an expert web search assistant using DuckDuckGo with advanced search syntax.

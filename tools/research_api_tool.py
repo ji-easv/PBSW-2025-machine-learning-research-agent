@@ -1,4 +1,5 @@
 import logging
+from ratelimit import limits, sleep_and_retry
 from typing_extensions import Literal
 import requests
 import xml.etree.ElementTree as ET
@@ -202,6 +203,8 @@ def is_arxiv_suitable(query: str) -> bool:
 api_base_url = "https://export.arxiv.org/api/query"
 
 
+@sleep_and_retry
+@limits(calls=10, period=30)
 def search_research_papers_api(
     query: str,
     max_results: int = 10,
@@ -314,6 +317,8 @@ def search_research_papers_api(
     return results
 
 
+@sleep_and_retry
+@limits(calls=10, period=30)
 def search_semantic_scholar(
     query: str,
     min_citations: int = 0,

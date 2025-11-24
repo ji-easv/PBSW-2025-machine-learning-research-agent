@@ -2,6 +2,7 @@ import logging
 import re
 from typing import List
 from ddgs import DDGS
+from ratelimit import limits, sleep_and_retry
 
 from datamodel.search_result import SearchResult
 
@@ -28,6 +29,8 @@ def is_blocked_content(results: list) -> bool:
     return True
 
 
+@sleep_and_retry
+@limits(calls=10, period=30)
 def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
     """
     Search the web. Supports advanced search syntax:

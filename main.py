@@ -13,7 +13,9 @@ import logging
 
 from tools.web_search_tool import search_web
 
-logging.basicConfig(format="%(levelname)s:%(asctime)s:%(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(levelname)s - %(asctime)s - %(message)s", level=logging.INFO
+)
 
 # Set UTF-8 encoding for Windows console to handle Unicode characters
 if sys.platform == "win32":
@@ -26,7 +28,7 @@ from autogen import (
     AssistantAgent,
 )
 
-from utils import (
+from utils.utils import (
     get_llm_config,
     get_work_dir,
 )

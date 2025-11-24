@@ -6,7 +6,7 @@ from tools.research_api_tool import (
     search_research_papers_api,
     search_semantic_scholar,
 )
-from utils import ReAct_prompt, get_llm_config
+from utils.utils import ReAct_prompt, get_llm_config
 
 ResearchPaperAPIAssistant_prompt = f"""
 You are an expert research paper search assistant with access to multiple research databases.
