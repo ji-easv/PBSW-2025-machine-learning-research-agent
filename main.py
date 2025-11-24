@@ -2,16 +2,25 @@ import os
 import sys
 import dotenv
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
-from agents.research_paper_agent import get_research_paper_api_assistant
+from agents.internal_critic_agent import get_internal_critic_agent
+from agents.research_paper_agent import get_research_paper_api_agent
+from agents.search_orchestrator import SearchOrchestrator
 from agents.user_proxy_agent import get_user_proxy
-from agents.web_search_agent import get_web_search_assistant
+from agents.web_search_agent import get_web_search_agent
 from autogen.coding import DockerCommandLineCodeExecutor
-
-import logging
-
+from autogen import (
+    AssistantAgent,
+    GroupChat,
+    GroupChatManager,
+)
 from tools.web_search_tool import search_web
+from utils.utils import (
+    get_llm_config,
+    get_work_dir,
+)
 
 logging.basicConfig(
     format="%(levelname)s - %(asctime)s - %(message)s", level=logging.INFO
@@ -24,14 +33,7 @@ if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8")
-from autogen import (
-    AssistantAgent,
-)
 
-from utils.utils import (
-    get_llm_config,
-    get_work_dir,
-)
 
 dotenv.load_dotenv()
 api_key = os.getenv("MISTRAL_API_KEY")
@@ -40,13 +42,37 @@ if not api_key:
 
 LLM_CONFIG = get_llm_config(api_key=api_key)
 
+task = """
+Find research papers on software testing that satisfy ALL of the following constraints:
+1) Published after 2020, and before 2024.
+2) Have more than 10 citations.
+3) Return the top three articles, providing for each: title, authors, publication year, number of citations, and URL.
+"""
+
 executor = DockerCommandLineCodeExecutor(
     work_dir=get_work_dir(),
 )
 
-web_search_assistant = get_web_search_assistant(api_key=api_key)
-research_paper_api_assistant = get_research_paper_api_assistant(api_key=api_key)
+web_search_agent = SearchOrchestrator(
+    name="WebSearchOrchestrator",
+    api_key=api_key,
+    search_agent=get_web_search_agent(api_key=api_key),
+    executor=executor,
+    human_input_mode="NEVER",
+    llm_config=False,
+)
+
+research_paper_api_assistant = SearchOrchestrator(
+    name="ResearchPaperAPIAssistant",
+    api_key=api_key,
+    search_agent=get_research_paper_api_agent(api_key=api_key),
+    executor=executor,
+    human_input_mode="NEVER",
+    llm_config=False,
+)
+
 user_proxy = get_user_proxy(executor=executor)
+internal_critic = get_internal_critic_agent(api_key=api_key)
 
 
 judge = AssistantAgent(
@@ -123,22 +149,28 @@ def extract_result_content(chat_result) -> str:
     return "No results extracted from chat."
 
 
-def main():
-    task = (
-        "Find research papers on software testing that satisfy ALL of the following constraints:\n"
-        "1) Published after 2003 (i.e., year >= 2004).\n"
-        "2) Have more than 10 citations.\n"
-        "3) Return the top three articles, providing for each: title, authors, "
-        "publication year, number of citations, and URL."
-    )
+def speaker_selection(last_speaker, groupchat):
+    messages = groupchat.messages
 
-    logging.info("Starting evaluation for task:\n%s", task)
+
+def main():
+    # group = GroupChat(
+    #     agents=[user_proxy, web_search_agent, research_paper_api_assistant, judge],
+    #     messages=[],
+    #     max_round=12,
+    #     speaker_selection_method=speaker_selection,
+    # )
+
+    # manager = GroupChatManager(
+    #     groupchat=group,
+    #     llm_config=LLM_CONFIG,
+    # )
 
     # Run research paper API assistant
     logging.info("Starting Research Paper API Assistant...")
     paper_result = user_proxy.initiate_chat(
         research_paper_api_assistant,
-        message=f"Task: {task}",
+        message=f"TASK: {task}",
         max_turns=10,
     )
     paper_content = extract_result_content(paper_result)
@@ -146,7 +178,7 @@ def main():
     # Run web search assistant
     logging.info("Starting Web Search Assistant...")
     web_result = user_proxy.initiate_chat(
-        web_search_assistant, message=f"Task: {task}", max_turns=10
+        web_search_agent, message=f"Task: {task}", max_turns=10
     )
     web_content = extract_result_content(web_result)
 

@@ -1,12 +1,10 @@
 from autogen import ConversableAgent
 from tools.fetch_link_tool import fetch_link
 from tools.web_search_tool import search_web
-from utils.utils import ReAct_prompt, get_llm_config
+from utils.utils import FINAL_ANSWER_FORMAT, get_llm_config
 
-WebSearchAssistant_prompt = f"""
+WebSearchAgent_prompt = f"""
 You are an expert web search assistant using DuckDuckGo with advanced search syntax.
-
-{ReAct_prompt}
 
 Your role:
 - Use web search to discover relevant papers, reports, or authoritative pages.
@@ -33,14 +31,6 @@ SEARCH STRATEGY (try simpler queries first):
     - filetype:pdf "[topic]" research
     - "[topic]" site:edu filetype:pdf
 
-DOMAIN EXAMPLE (traffic calming / speed bumps):
-- Try different but related terms across separate searches, e.g.:
-    - "speed bumps" "traffic calming" road safety
-    - "speed humps" "traffic calming measures"
-    - "speed tables" "vertical deflection" "traffic calming device"
-    - "speed bumps" urban roads "accident rate"
-- Vary quoting and specificity between searches: sometimes quote phrases, sometimes not.
-
 ANTI-LOOP STRATEGY - If no or poor results:
     a. First try: Simple quoted phrase ("[topic] research")
     b. Second try: Remove quotes ([topic] research paper)
@@ -64,23 +54,21 @@ HANDLING RESULTS:
   verified via a research database such as Semantic Scholar."
 - Add a note like "Found 2 results likely matching the topic (task requested 3)."
 - Never fabricate citation counts.
+
+{FINAL_ANSWER_FORMAT}
 """
 
 
-def get_web_search_assistant(api_key: str) -> ConversableAgent:
-    web_search_assistant = ConversableAgent(
-        name="WebSearchAssistant",
+def get_web_search_agent(api_key: str) -> ConversableAgent:
+    web_search_agent = ConversableAgent(
+        name="WebSearchAgent",
         llm_config=get_llm_config(api_key=api_key),
-        system_message=WebSearchAssistant_prompt,
+        system_message=WebSearchAgent_prompt,
     )
 
-    web_search_assistant.register_for_llm(
+    web_search_agent.register_for_llm(
         name="search_web",
         description="This tool allows you to search the web for information relevant to user queries.",
     )(search_web)
 
-    # web_search_assistant.register_for_llm(
-    #    name="fetch_link", description="Fetch a URL link."
-    # )(fetch_link)
-
-    return web_search_assistant
+    return web_search_agent

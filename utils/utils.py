@@ -1,6 +1,20 @@
 from datetime import datetime
 from pathlib import Path
 
+MAX_INTERNAL_ROUNDS = 5
+
+FINAL_ANSWER_FORMAT = """
+FINAL ANSWER FORMAT:
+When you have gathered results satisfying all constraints, respond with:
+RESULTS:
+<list of papers in the format:>
+1. Title: <title>
+   Authors: <authors>
+   Year: <publication year>
+   Citations: <number of citations>
+   URL: <URL>
+"""
+
 
 def get_llm_config(api_key: str):
     return {
@@ -28,16 +42,3 @@ def get_work_dir():
     p = Path.cwd() / "coding" / timestamp
     p.mkdir(parents=True, exist_ok=True)
     return p
-
-
-ReAct_prompt = """
-To solve problems, you will use the ReAct (Reasoning and Acting) framework.
-
-Process:
-1. Thought: Reason about what to do next
-2. [Call the appropriate tool - AutoGen handles this automatically]
-3. [Receive tool results from the system]
-4. Thought: Analyze the results and decide next steps
-5. Repeat steps 1-4 if needed
-6. Final Answer: Provide the answer when task is complete. End your response with 'TERMINATE'.
-"""

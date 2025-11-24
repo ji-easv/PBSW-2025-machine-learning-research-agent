@@ -7,7 +7,7 @@ from datamodel.search_result import SearchResult
 
 
 @sleep_and_retry
-@limits(calls=10, period=30)
+@limits(calls=5, period=30)
 def search_semantic_scholar(
     query: str,
     min_citations: int = 0,
