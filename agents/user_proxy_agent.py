@@ -1,5 +1,6 @@
 from autogen import UserProxyAgent
 
+from tools.fetch_link_tool import fetch_link
 from tools.research_api_tool import (
     is_arxiv_suitable,
     search_research_papers_api,
@@ -38,5 +39,9 @@ def get_user_proxy(executor: DockerCommandLineCodeExecutor) -> UserProxyAgent:
     user_proxy.register_for_execution(
         name="is_arxiv_suitable",
     )(is_arxiv_suitable)
+
+    # user_proxy.register_for_execution(
+    #   name="fetch_link", description="Fetch a URL link."
+    # )(fetch_link)
 
     return user_proxy

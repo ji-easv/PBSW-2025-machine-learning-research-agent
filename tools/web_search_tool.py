@@ -1,11 +1,36 @@
+import logging
+import re
+from typing import List
 from ddgs import DDGS
 
+from datamodel.search_result import SearchResult
 
-def search_web(query: str, num_results: int = 10) -> str:
+
+def is_blocked_content(results: list) -> bool:
+    block_patterns = [
+        r"verify you are human",
+        r"captcha",
+        r"robot check",
+        r"unusual traffic",
+        r"please enable cookies",
+        r"access denied",
+    ]
+    for result in results:
+        if result.get("title") or result.get("href") or result.get("body"):
+            for field in ("title", "href", "body", "description"):
+                value = result.get(field, "")
+                for pattern in block_patterns:
+                    if re.search(pattern, str(value), re.IGNORECASE):
+                        return True
+            # If at least one result looks normal, not blocked
+            return False
+    # If all results are empty or suspicious, treat as blocked
+    return True
+
+
+def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
     """
-    Search the web using DuckDuckGo.
-
-    Supports advanced search syntax:
+    Search the web. Supports advanced search syntax:
 
     Exact phrases:
         - Use quotes: "[your topic]" - searches for the exact phrase
@@ -45,30 +70,26 @@ def search_web(query: str, num_results: int = 10) -> str:
     """
     try:
 
-        results = []
+        results: List[SearchResult] = []
         with DDGS() as ddgs:
-            search_results = list(ddgs.text(query, max_results=num_results))
+            content = ddgs.text(query, max_results=num_results, backend="mojeek")
 
-            if not search_results:
-                return (
-                    f"No results found for query: '{query}'. "
-                    "Consider trying simpler keywords, synonyms, or domain filters "
-                    "(e.g., site:edu, site:gov), or using a research-specific API if "
-                    "you need academic papers."
+            if is_blocked_content(content):
+                logging.error("Search blocked by Brave. Detected bot protection.")
+                return []
+
+            for result in content:
+                results.append(
+                    SearchResult(
+                        query=query,
+                        title=result["title"],
+                        url=result["href"],
+                        snippet=result["body"],
+                    )
                 )
 
-            for i, result in enumerate(search_results, 1):
-                title = result.get("title", "No title")
-                url = result.get("href", result.get("link", "No URL"))
-                snippet = result.get(
-                    "body", result.get("description", "No description")
-                )
+        return results
 
-                results.append(f"{i}. {title}\n   URL: {url}\n   {snippet}\n")
-
-        return "\n".join(results)
-
-    except ImportError:
-        return "Error: ddgs library not installed. Run: pip install ddgs"
     except Exception as e:
-        return f"Error searching DuckDuckGo: {str(e)}"
+        logging.error("Error searching the web: %s", str(e))
+        return []

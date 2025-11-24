@@ -1,6 +1,11 @@
 from autogen import ConversableAgent
 
-from tools.research_api_tool import is_arxiv_suitable, search_research_papers_api, search_semantic_scholar
+from tools.fetch_link_tool import fetch_link
+from tools.research_api_tool import (
+    is_arxiv_suitable,
+    search_research_papers_api,
+    search_semantic_scholar,
+)
 from utils import ReAct_prompt, get_llm_config
 
 ResearchPaperAPIAssistant_prompt = f"""
@@ -17,28 +22,18 @@ Your role:
 - Choose the most appropriate database and query strategy.
 - Never fabricate citation counts, years, authors, or URLs.
 
-IMPORTANT TOOL SELECTION:
-1. **arXiv API** - Use ONLY for these topics:
-   - Physics, Astrophysics, Mathematics, Computer Science
-   - Quantitative Biology, Quantitative Finance, Statistics
-   - Electrical Engineering, Signal Processing, Economics
-
-2. **Semantic Scholar API** - Use for:
-   - ALL other topics (civil engineering, medicine, social sciences, etc.)
-   - When citation counts are required (arXiv doesn't provide citations)
-   - When you need broad multi-disciplinary coverage
-   - Topics like: traffic, transportation, health, education, business, etc.
-
-3. **is_arxiv_suitable**:
-   - Call this when you're unsure whether arXiv is appropriate.
-   - If it returns False, do NOT use arXiv.
-   - If it returns True, you may use arXiv.
-   - If it returns None, you may try arXiv but should strongly prefer Semantic Scholar
-     for civil/traffic/health/social-science topics or when citations are required.
+Use the "is_arxiv_suitable" tool to determine if arXiv is appropriate for the topic.
 
 EXAMPLE TOPIC ROUTING:
 - Task: "Find research papers on speed bumps / speed humps with citation counts..."
   → Topic is traffic / civil engineering → NOT typically in arXiv → Use Semantic Scholar.
+
+ARXIV STRATEGY:
+- Use field prefixes: ti: (title), au: (author), abs: (abstract), cat: (category), all: (all fields).
+- Use Boolean operators: AND, OR, ANDNOT.
+- If you need to search for phrases, split them into separate words, and combine with AND. E.g., if search titles for "deep learning", use "ti:deep AND ti:learning".
+- Example: ti:"machine AND ti:learning" AND cat:cs.AI.
+- If arXiv returns no results, explain that the topic may be outside arXiv's scope and switch to Semantic Scholar instead of retrying arXiv endlessly.
 
 SEMANTIC SCHOLAR STRATEGY:
 1. Parse constraints from the task:
@@ -62,13 +57,6 @@ SEMANTIC SCHOLAR STRATEGY:
    - Then, if still no results, consider relaxing year_from slightly (e.g., from 2004 to 2000)
      but always track and clearly state how you relaxed constraints.
 6. Never repeat the exact same query+filter combination twice.
-
-ARXIV STRATEGY (when appropriate):
-- Use field prefixes: ti: (title), au: (author), abs: (abstract), cat: (category).
-- Use Boolean operators: AND, OR, ANDNOT.
-- Example: ti:"machine learning" AND cat:cs.AI.
-- If arXiv returns no results, explain that the topic may be outside arXiv's scope
-  and switch to Semantic Scholar instead of retrying arXiv endlessly.
 
 HANDLING RESULTS & CONSTRAINTS:
 - If the task asks for N results but you find fewer that truly meet ALL constraints,
@@ -116,5 +104,9 @@ def get_research_paper_api_assistant(api_key: str) -> ConversableAgent:
         name="is_arxiv_suitable",
         description="Check if a research topic is suitable for arXiv search. Returns (is_suitable, reason).",
     )(is_arxiv_suitable)
+
+    #  research_paper_api_assistant.register_for_llm(
+    #      name="fetch_link", description="Fetch a URL link."
+    #  )(fetch_link)
 
     return research_paper_api_assistant
