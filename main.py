@@ -11,7 +11,6 @@ from autogen.coding import DockerCommandLineCodeExecutor
 
 import logging
 
-from tools.web_search_tool import search_web
 
 logging.basicConfig(
     format="%(levelname)s - %(asctime)s - %(message)s", level=logging.INFO
