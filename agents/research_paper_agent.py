@@ -4,6 +4,8 @@ from tools.research_api_tool import (
     search_semantic_scholar,
 )
 from utils.utils import FINAL_ANSWER_FORMAT, get_llm_config
+from tools.simple_math_tool import is_greater
+from utils.utils import get_llm_config
 
 ResearchPaperAPIAgent_prompt = f"""
 You are a research paper search assistant using Semantic Scholar.
@@ -39,5 +41,10 @@ def get_research_paper_api_agent(api_key: str) -> AssistantAgent:
         name="search_semantic_scholar",
         description="Search Semantic Scholar for research papers across ALL disciplines with citation counts.",
     )(search_semantic_scholar)
+
+    research_paper_api_agent.register_for_llm(
+        name="is_greater",
+        description="Compares two integers and determines if the first is greater than the second.",
+    )(is_greater)
 
     return research_paper_api_agent

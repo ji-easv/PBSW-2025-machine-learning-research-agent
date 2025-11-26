@@ -1,11 +1,7 @@
 import os
 import sys
 import dotenv
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from agents.internal_critic_agent import get_internal_critic_agent
 from agents.research_paper_agent import get_research_paper_api_agent
 from agents.search_orchestrator import SearchOrchestrator
 from agents.user_proxy_agent import get_user_proxy
@@ -16,11 +12,13 @@ from autogen import (
     GroupChat,
     GroupChatManager,
 )
-from tools.web_search_tool import search_web
 from utils.utils import (
     get_llm_config,
     get_work_dir,
 )
+
+import logging
+
 
 logging.basicConfig(
     format="%(levelname)s - %(asctime)s - %(message)s", level=logging.INFO
@@ -93,48 +91,6 @@ judge = AssistantAgent(
         Return STRICT JSON, no extra commentary, end your response with TERMINATE.
     """,
 )
-
-
-def extract_result_content(chat_result) -> str:
-    """Extract actual content from chat result object."""
-    if hasattr(chat_result, "chat_history") and chat_result.chat_history:
-        # Look for the last assistant message that contains actual results
-        # Work backwards through chat history
-        for msg in reversed(chat_result.chat_history):
-            # Only check messages from the assistant or ResearchPaperAPIAssistant or WebSearchAssistant
-            if (
-                msg.get("name") in ["ResearchPaperAPIAssistant", "WebSearchAssistant"]
-                or msg.get("role") == "assistant"
-            ):
-                content = msg.get("content", "")
-                if not content or not content.strip():
-                    continue
-
-                # Skip tool calls and tool responses
-                if "***** Suggested tool call" in content:
-                    continue
-                if "***** Response from calling tool" in content:
-                    continue
-
-                # Skip standalone TERMINATE or empty thought messages
-                if content.strip() == "TERMINATE":
-                    continue
-                if (
-                    content.strip().startswith("Thought:")
-                    and len(content.strip()) < 100
-                ):
-                    continue
-
-                # This is a real response - clean up TERMINATE if present
-                if "TERMINATE" in content:
-                    content = content.replace("TERMINATE", "").rstrip()
-
-                return content.strip()
-
-    # Fallback: return summary or string representation
-    if hasattr(chat_result, "summary"):
-        return chat_result.summary
-    return "No results extracted from chat."
 
 
 def speaker_selection(last_speaker, groupchat):
