@@ -36,9 +36,13 @@ if sys.platform == "win32":
 
 
 dotenv.load_dotenv()
-api_key = os.getenv("MISTRAL_API_KEY")
+# api_key = os.getenv("MISTRAL_API_KEY")
+# if not api_key:
+#     raise ValueError("MISTRAL_API_KEY not found in environment variables.")
+
+api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
-    raise ValueError("MISTRAL_API_KEY not found in environment variables.")
+    raise ValueError("GOOGLE_API_KEY not found in environment variables.")
 
 LLM_CONFIG = get_llm_config(api_key=api_key)
 

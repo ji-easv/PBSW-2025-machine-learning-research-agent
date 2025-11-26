@@ -5,13 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "ag2[gemini]>=0.10.0",
     "autogen==0.10.0",
     "autogen-ext[docker]>=0.7.5",
     "ddgs>=9.9.1",
     "dotenv==0.9.9",
     "fix-busted-json==0.0.18",
+    "google-genai>=1.52.0",
     "mistralai==1.9.11",
     "ratelimit>=2.2.1",
     "requests>=2.31.0",
+    "vertexai>=1.71.1",
 ]
 
