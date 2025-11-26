@@ -2,8 +2,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from mistralai import Union
-
 MAX_INTERNAL_ROUNDS = 10
 
 FINAL_ANSWER_FORMAT = """

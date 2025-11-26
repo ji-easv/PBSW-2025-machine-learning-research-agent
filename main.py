@@ -2,6 +2,7 @@ import os
 import sys
 import dotenv
 import logging
+import argparse
 from agents.research_paper_agent import get_research_paper_api_agent
 from agents.search_orchestrator import SearchOrchestrator
 from agents.user_proxy_agent import get_user_proxy
@@ -16,9 +17,6 @@ from utils.utils import (
     get_llm_config,
     get_work_dir,
 )
-
-import logging
-import argparse
 
 
 logging.basicConfig(
@@ -37,7 +35,12 @@ if sys.platform == "win32":
 dotenv.load_dotenv()
 parser = argparse.ArgumentParser(description="Research Paper Agent")
 group = parser.add_mutually_exclusive_group()
-group.add_argument("--llm-provider", choices=["mistral", "google"], dest="llm_provider")
+group.add_argument(
+    "--llm-provider",
+    choices=["mistral", "google"],
+    dest="llm_provider",
+    default="mistral",
+)
 group.add_argument(
     "--google",
     action="store_const",
@@ -113,7 +116,24 @@ judge = AssistantAgent(
         - honesty & transparency (1-5): Did the agent avoid fabricating citation counts or details, and did it explain any limitations of the tools used?
         - clarity & structure (1-5): Is the answer easy to read, with titles, authors, years, citation counts, and URLs clearly listed where available?
 
-        Return STRICT JSON, no extra commentary, end your response with TERMINATE.
+        Return the response exactly as follows, no extra commentary:
+        TERMINATE:
+        ```json
+        {
+            "ResearchPaperAPIAgent": {
+                "completness": <score 1-5>,
+                "relevance": <score 1-5>,
+                "honesty & transparency": <score 1-5>,
+                "clarity & structure": <score 1-5>
+            },
+            "WebSearchOrchestrator": {
+                "completness": <score 1-5>,
+                "relevance": <score 1-5>,
+                "honesty & transparency": <score 1-5>,
+                "clarity & structure": <score 1-5>
+            }
+        }
+        ```
     """,
 )
 
@@ -161,6 +181,11 @@ def main():
         name="main_manager",
         groupchat=group,
         llm_config=LLM_CONFIG,
+        is_termination_msg=lambda msg: (
+            isinstance(msg, dict)
+            and isinstance(msg.get("content"), str)
+            and "TERMINATE" in msg["content"]
+        ),
     )
 
     user_proxy.initiate_chat(
