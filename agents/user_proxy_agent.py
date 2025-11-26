@@ -17,7 +17,6 @@ def get_user_proxy(executor: DockerCommandLineCodeExecutor) -> UserProxyAgent:
         is_termination_msg=lambda msg: (
             isinstance(msg, dict)
             and isinstance(msg.get("content"), str)
-            and "OK:" in msg["content"]
             and "TERMINATE" in msg["content"]
         ),
         code_execution_config={

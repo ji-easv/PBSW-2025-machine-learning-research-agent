@@ -66,8 +66,8 @@ web_search_agent = SearchOrchestrator(
     llm_config=False,
 )
 
-research_paper_api_assistant = SearchOrchestrator(
-    name="ResearchPaperAPIAssistant",
+research_paper_api_agent = SearchOrchestrator(
+    name="ResearchPaperAPIAgent",
     api_key=api_key,
     search_agent=get_research_paper_api_agent(api_key=api_key),
     executor=executor,
@@ -76,38 +76,22 @@ research_paper_api_assistant = SearchOrchestrator(
 )
 
 user_proxy = get_user_proxy(executor=executor)
-internal_critic = get_internal_critic_agent(api_key=api_key)
-
 
 judge = AssistantAgent(
     name="judge",
     llm_config=LLM_CONFIG,
-    system_message=(
-        "You will be given two sets of results from different agents attempting to "
-        "complete the same research task. "
-        "Your goals are to: (1) assess how well each agent satisfied the explicit "
-        "task constraints (topic, year, citation count, number of results), "
-        "(2) evaluate the relevance and clarity of the returned papers, and "
-        "(3) reward honesty and clear explanation when no exact solution exists.\n\n"
-        "When evaluating, consider:\n"
-        "- Constraint satisfaction: Did the agent respect requirements like "
-        "'published after 2003' and 'over 10 citations'? Did it clearly say when "
-        "no papers met all constraints?\n"
-        "- Relevance: Are the returned papers clearly about the requested topic?\n"
-        "- Honesty & transparency: Did the agent avoid fabricating citation counts "
-        "or details, and did it explain any limitations of the tools used?\n"
-        "- Clarity & structure: Is the answer easy to read, with titles, authors, "
-        "years, citation counts, and URLs clearly listed where available?\n\n"
-        "A good answer may sometimes honestly report that no paper satisfies all "
-        "constraints, while providing the best available near-miss papers and "
-        "explicitly stating which constraints they fail. Prefer such an answer over "
-        "one that ignores constraints or makes up data.\n\n"
-        "In your response, briefly compare the two agents, list key strengths and "
-        "weaknesses for each, and then clearly state which agent performed better: "
-        "'Winner: ResearchPaperAPIAssistant', 'Winner: WebSearchAssistant', or "
-        "'Winner: tie' if performance is truly equal. End your response with "
-        "'TERMINATE' to indicate the end of the evaluation."
-    ),
+    system_message="""
+        You are an external evaluator of research paper agents. You will be given two sets of results from different agents attempting to complete the same research task.
+        Your role is to score and compare the quality of the results based on how well they meet the task requirements.
+        
+        When evaluating, consider:
+        - completness (1-5): Did the agent satisfy all explicit constraints in the task (e.g., publication year, citation count, number of results)?
+        - relevance (1-5): Are the returned papers relevant to the requested topic?
+        - honesty & transparency (1-5): Did the agent avoid fabricating citation counts or details, and did it explain any limitations of the tools used?
+        - clarity & structure (1-5): Is the answer easy to read, with titles, authors, years, citation counts, and URLs clearly listed where available?
+
+        Return STRICT JSON, no extra commentary, end your response with TERMINATE.
+    """,
 )
 
 
@@ -155,121 +139,55 @@ def extract_result_content(chat_result) -> str:
 
 def speaker_selection(last_speaker, groupchat):
     messages = groupchat.messages
+    last_message = messages[-1] if messages else {}
+    last_message_content = last_message.get("content", "") if messages else ""
+
+    def has_result(agent_name):
+        return any(
+            msg.get("name") == agent_name and "RESULTS:" in (msg.get("content") or "")
+            for msg in messages
+        )
+
+    # kick-off the conversation
+    if last_speaker is user_proxy and last_message_content.strip().startswith("TASK:"):
+        return research_paper_api_agent
+
+    # research_paper_api_agent <-> user_proxy until RESULTS
+    if not has_result("ResearchPaperAPIAgent"):
+        if last_speaker is user_proxy:
+            return research_paper_api_agent
+        else:
+            return user_proxy
+
+    # web_search_agent <-> user_proxy until RESULTS
+    if not has_result("WebSearchOrchestrator"):
+        if last_speaker is user_proxy:
+            return web_search_agent
+        else:
+            return user_proxy
+
+    return judge
 
 
 def main():
-    # group = GroupChat(
-    #     agents=[user_proxy, web_search_agent, research_paper_api_assistant, judge],
-    #     messages=[],
-    #     max_round=12,
-    #     speaker_selection_method=speaker_selection,
-    # )
+    group = GroupChat(
+        agents=[user_proxy, web_search_agent, research_paper_api_agent, judge],
+        max_round=12,
+        speaker_selection_method=speaker_selection,
+    )
 
-    # manager = GroupChatManager(
-    #     groupchat=group,
-    #     llm_config=LLM_CONFIG,
-    # )
+    manager = GroupChatManager(
+        name="main_manager",
+        groupchat=group,
+        llm_config=LLM_CONFIG,
+    )
 
-    # Run research paper API assistant
-    logging.info("Starting Research Paper API Assistant...")
-    paper_result = user_proxy.initiate_chat(
-        research_paper_api_assistant,
+    user_proxy.initiate_chat(
+        manager,
         message=f"TASK: {task}",
-        max_turns=10,
+        max_turns=20,
+        summary_method="reflection_with_llm",
     )
-    paper_content = extract_result_content(paper_result)
-
-    # Run web search assistant
-    logging.info("Starting Web Search Assistant...")
-    web_result = user_proxy.initiate_chat(
-        web_search_agent, message=f"Task: {task}", max_turns=10
-    )
-    web_content = extract_result_content(web_result)
-
-    # Judge evaluates both results
-    logging.info("Starting Judge Evaluation...")
-    judge_result = user_proxy.initiate_chat(
-        judge,
-        message=f"""Evaluate the performance of the research agents:
-
-Task: {task}
-
-Research Paper API Assistant Results:
-{paper_content}
-
-Web Search Assistant Results:
-{web_content}
-
-Provide your evaluation and pick the best results.""",
-        max_turns=1,
-    )
-    judge_content = extract_result_content(judge_result)
-
-    # Save all results to file
-    save_results_to_file(task, paper_content, web_content, judge_content)
-
-    print("\n" + "=" * 80)
-    print("EVALUATION COMPLETE")
-    print("=" * 80)
-
-
-def save_results_to_file(
-    task: str, paper_content: str, web_content: str, judge_content: str
-):
-    """Save results to a cleanly formatted markdown file."""
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
-
-    results_file = results_dir / "latest_results.md"
-
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    content = f"""# Research Agent Results
-Last updated: {timestamp}
-
----
-
-## Task
-{task}
----
-
-## Research Paper API Assistant Results
-
-{paper_content}
-
----
-
-## Web Search Assistant Results
-
-{web_content}
-
----
-
-## Judge Evaluation
-
-{judge_content}
-
----
-
-*This file is automatically overwritten each time the system runs.*
-"""
-
-    results_file.write_text(content, encoding="utf-8")
-    logging.info("Results saved to: %s", results_file.absolute())
-
-    # Also save a JSON version for programmatic access
-    json_file = results_dir / "latest_results.json"
-    json_data = {
-        "timestamp": timestamp,
-        "task": task,
-        "paper_api_results": paper_content,
-        "web_search_results": web_content,
-        "judge_evaluation": judge_content,
-    }
-    json_file.write_text(
-        json.dumps(json_data, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-    logging.info("JSON results saved to: %s", json_file.absolute())
 
 
 if __name__ == "__main__":

@@ -36,6 +36,11 @@ class SearchOrchestrator(ConversableAgent):
             name=self.name + "_group_manager",
             groupchat=self.group,
             llm_config=get_llm_config(api_key),
+            is_termination_msg=lambda msg: (
+                isinstance(msg, dict)
+                and isinstance(msg.get("content"), str)
+                and "OK:" in msg["content"]
+            ),
         )
 
     def speaker_selection(
@@ -82,21 +87,36 @@ class SearchOrchestrator(ConversableAgent):
     def generate_reply(
         self, messages=None, sender=None, exclude=None
     ) -> str | dict[str, Any] | None:
-        if not messages:
-            messages = []
-
         task = "No task provided."
-        for msg in reversed(messages):
-            content = msg.get("content", "")
-            if content.strip().startswith("TASK:"):
-                task = content
-                break
+
+        # First: Try to get messages from the outer groupchat (via sender)
+        if sender is not None and hasattr(sender, "groupchat"):
+            outer_messages = sender.groupchat.messages
+            for msg in outer_messages:
+                content = msg.get("content", "") or ""
+                if "TASK:" in content:
+                    task = content
+                    break
+
+        # Fallback: check the messages passed directly
+        if task == "No task provided." and messages:
+            for msg in reversed(messages):
+                if isinstance(msg, str):
+                    content = msg
+                else:
+                    content = msg.get("content", "") or ""
+                if "TASK:" in content:
+                    task = content
+                    break
+
+        # Clear any previous messages in the group chat before starting fresh
+        self.group.messages.clear()
 
         try:
             self.user_proxy.initiate_chat(
                 self.group_manager,
                 message=task,
-                max_round=5,
+                max_turns=5,
                 summary_method="reflection_with_llm",
             )
         except Exception as e:
