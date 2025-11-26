@@ -2,6 +2,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from autogen import ChatResult
+
 MAX_INTERNAL_ROUNDS = 10
 
 FINAL_ANSWER_FORMAT = """
@@ -65,3 +67,48 @@ def get_work_dir():
     p = Path.cwd() / "coding" / timestamp
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def save_results(chat: ChatResult, filename: str = "logs/latest_results.md"):
+    """
+    Extracts the judge evaluation and each agent's final answer from the chat result,
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    # Extract judge evaluation (JSON block with TERMINATE)
+    judge_eval = None
+    for msg in reversed(chat.chat_history):
+        content = msg.get("content", "")
+        if not content or not content.strip():
+            continue
+        if "{" in content and "}" in content and "TERMINATE:" in content:
+            judge_eval = content.replace("TERMINATE:", "").strip()
+            break
+
+    # Extract agent results (RESULT from each agent)
+    agent_results = {}
+    agent_names = ["ResearchPaperAPIAgent", "WebSearchOrchestrator"]
+    for agent in agent_names:
+        for msg in reversed(chat.chat_history):
+            name = msg.get("name", "")
+            content = msg.get("content", "")
+            if not content or not content.strip():
+                continue
+            if name != agent:
+                continue
+            if content.strip().startswith("RESULT:") or content.strip().startswith(
+                "RESULT:"
+            ):
+                agent_results[agent] = content.strip()
+                break
+            if content.strip().startswith("OK:") and "RESULT:" in content:
+                agent_results[agent] = content.strip()
+                break
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"# Research Agent Results - {timestamp}\n\n")
+        if judge_eval:
+            f.write("## Judge Evaluation\n\n")
+            f.write(f"{judge_eval}\n\n")
+        for agent, result in agent_results.items():
+            f.write(f"## {agent}\n\n{result}\n\n")
+    print(f"Results saved to {filename}")

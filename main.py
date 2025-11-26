@@ -14,6 +14,7 @@ from autogen import (
     GroupChatManager,
 )
 from utils.utils import (
+    save_results,
     get_llm_config,
     get_work_dir,
 )
@@ -145,7 +146,7 @@ def speaker_selection(last_speaker, groupchat):
 
     def has_result(agent_name):
         return any(
-            msg.get("name") == agent_name and "RESULTS:" in (msg.get("content") or "")
+            msg.get("name") == agent_name and "RESULT:" in (msg.get("content") or "")
             for msg in messages
         )
 
@@ -188,12 +189,14 @@ def main():
         ),
     )
 
-    user_proxy.initiate_chat(
+    chat = user_proxy.initiate_chat(
         manager,
         message=f"TASK: {task}",
         max_turns=20,
         summary_method="reflection_with_llm",
     )
+
+    save_results(chat)
 
 
 if __name__ == "__main__":

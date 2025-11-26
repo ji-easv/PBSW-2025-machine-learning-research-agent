@@ -20,7 +20,7 @@ def get_internal_critic_agent(llm_config: dict) -> AssistantAgent:
         Rules:
         - If the latest answer is acceptable, respond with:
           OK: <short justification>
-          RESULTS: <the answer from the search agent>
+          RESULT: <the answer from the search agent>
         - If there are issues, respond with:
           CRITIQUE: <what is wrong + smallest fix needed>
         - Do NOT propose your own final answer; only judge and comment.
