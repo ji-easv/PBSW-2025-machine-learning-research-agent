@@ -10,13 +10,13 @@ from autogen.coding import DockerCommandLineCodeExecutor
 
 from agents.internal_critic_agent import get_internal_critic_agent
 from agents.user_proxy_agent import get_user_proxy
-from utils.utils import MAX_INTERNAL_ROUNDS, get_llm_config
+from utils.utils import MAX_INTERNAL_ROUNDS
 
 
 class SearchOrchestrator(ConversableAgent):
     def __init__(
         self,
-        api_key: str,
+        custom_llm_config: dict,
         search_agent: AssistantAgent,
         executor: DockerCommandLineCodeExecutor,
         *args,
@@ -24,7 +24,7 @@ class SearchOrchestrator(ConversableAgent):
     ):
         super().__init__(*args, **kwargs)
         self.user_proxy = get_user_proxy(executor)
-        self.critic = get_internal_critic_agent(api_key)
+        self.critic = get_internal_critic_agent(custom_llm_config)
         self.search_agent = search_agent
         self.group = GroupChat(
             agents=[self.search_agent, self.critic, self.user_proxy],
@@ -35,7 +35,7 @@ class SearchOrchestrator(ConversableAgent):
         self.group_manager = GroupChatManager(
             name=self.name + "_group_manager",
             groupchat=self.group,
-            llm_config=get_llm_config(api_key),
+            llm_config=custom_llm_config,
             is_termination_msg=lambda msg: (
                 isinstance(msg, dict)
                 and isinstance(msg.get("content"), str)

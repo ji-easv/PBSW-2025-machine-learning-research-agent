@@ -3,9 +3,8 @@ from autogen import AssistantAgent
 from tools.research_api_tool import (
     search_semantic_scholar,
 )
-from utils.utils import FINAL_ANSWER_FORMAT, get_llm_config
+from utils.utils import FINAL_ANSWER_FORMAT
 from tools.simple_math_tool import is_greater
-from utils.utils import get_llm_config
 
 ResearchPaperAPIAgent_prompt = f"""
 You are a research paper search assistant using Semantic Scholar.
@@ -30,10 +29,10 @@ Your role:
 """
 
 
-def get_research_paper_api_agent(api_key: str) -> AssistantAgent:
+def get_research_paper_api_agent(custom_llm_config: dict) -> AssistantAgent:
     research_paper_api_agent = AssistantAgent(
         name="ResearchPaperAPIAgent",
-        llm_config=get_llm_config(api_key=api_key),
+        llm_config=custom_llm_config,
         system_message=ResearchPaperAPIAgent_prompt,
     )
 

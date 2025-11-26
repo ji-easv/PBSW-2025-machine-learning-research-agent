@@ -18,6 +18,7 @@ from utils.utils import (
 )
 
 import logging
+import argparse
 
 
 logging.basicConfig(
@@ -34,15 +35,39 @@ if sys.platform == "win32":
 
 
 dotenv.load_dotenv()
-# api_key = os.getenv("MISTRAL_API_KEY")
-# if not api_key:
-#     raise ValueError("MISTRAL_API_KEY not found in environment variables.")
+parser = argparse.ArgumentParser(description="Research Paper Agent")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--llm-provider", choices=["mistral", "google"], dest="llm_provider")
+group.add_argument(
+    "--google",
+    action="store_const",
+    const="google",
+    dest="llm_provider",
+    help="Use Google as LLM provider",
+)
+group.add_argument(
+    "--mistral",
+    action="store_const",
+    const="mistral",
+    dest="llm_provider",
+    help="Use Mistral as LLM provider",
+)
 
-api_key = os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+args = parser.parse_args()
+llm_provider = args.llm_provider
 
-LLM_CONFIG = get_llm_config(api_key=api_key)
+if llm_provider == "mistral":
+    api_key = os.getenv("MISTRAL_API_KEY")
+    if not api_key:
+        raise ValueError("MISTRAL_API_KEY not found in environment variables.")
+elif llm_provider == "google":
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+else:
+    raise ValueError(f"Unsupported LLM provider: {llm_provider}")
+
+LLM_CONFIG = get_llm_config(llm_provider=llm_provider, api_key=api_key)
 
 task = """
 Find research papers on software testing that satisfy ALL of the following constraints:
@@ -57,8 +82,8 @@ executor = DockerCommandLineCodeExecutor(
 
 web_search_agent = SearchOrchestrator(
     name="WebSearchOrchestrator",
-    api_key=api_key,
-    search_agent=get_web_search_agent(api_key=api_key),
+    custom_llm_config=LLM_CONFIG,
+    search_agent=get_web_search_agent(custom_llm_config=LLM_CONFIG),
     executor=executor,
     human_input_mode="NEVER",
     llm_config=False,
@@ -66,8 +91,8 @@ web_search_agent = SearchOrchestrator(
 
 research_paper_api_agent = SearchOrchestrator(
     name="ResearchPaperAPIAgent",
-    api_key=api_key,
-    search_agent=get_research_paper_api_agent(api_key=api_key),
+    custom_llm_config=LLM_CONFIG,
+    search_agent=get_research_paper_api_agent(custom_llm_config=LLM_CONFIG),
     executor=executor,
     human_input_mode="NEVER",
     llm_config=False,

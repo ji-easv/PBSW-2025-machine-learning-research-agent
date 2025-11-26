@@ -1,7 +1,6 @@
 from autogen import AssistantAgent
-from tools.fetch_link_tool import fetch_link
 from tools.web_search_tool import search_web
-from utils.utils import FINAL_ANSWER_FORMAT, get_llm_config
+from utils.utils import FINAL_ANSWER_FORMAT
 
 WebSearchAgent_prompt = f"""
 You are an expert web search assistant using DuckDuckGo with advanced search syntax.
@@ -59,10 +58,10 @@ HANDLING RESULTS:
 """
 
 
-def get_web_search_agent(api_key: str) -> AssistantAgent:
+def get_web_search_agent(custom_llm_config: dict) -> AssistantAgent:
     web_search_agent = AssistantAgent(
         name="WebSearchAgent",
-        llm_config=get_llm_config(api_key=api_key),
+        llm_config=custom_llm_config,
         system_message=WebSearchAgent_prompt,
     )
 

@@ -24,13 +24,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Using conda
-
-```sh
-conda env create
-conda activate research-agent
-```
-
 ---
 
 **To generate `requirements.txt` from `pyproject.toml` (using pip-tools):**
@@ -47,6 +40,24 @@ uv pip freeze > requirements.txt
 ```
 
 ## Running the project
+
+Run with UV:
+
+```sh
+uv run main.py
+```
+
+Run with a specific LLM provider:
+
+```sh
+uv run main.py --google
+```
+
+Run with Python:
+
+```sh
+python main.py
+```
 
 Allows you to store output in a file:
 
