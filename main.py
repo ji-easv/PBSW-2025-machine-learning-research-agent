@@ -3,17 +3,22 @@ import sys
 import dotenv
 import logging
 import argparse
+from agents.external_judge_agent import (
+    get_external_judge_agent,
+    llm_judge_score,
+)
 from agents.research_paper_agent import get_research_paper_api_agent
 from agents.search_orchestrator import SearchOrchestrator
 from agents.user_proxy_agent import get_user_proxy
 from agents.web_search_agent import get_web_search_agent
+from utils.task_prompts import complex_tasks, simple_tasks
 from autogen.coding import DockerCommandLineCodeExecutor
 from autogen import (
-    AssistantAgent,
     GroupChat,
     GroupChatManager,
 )
 from utils.utils import (
+    extract_final_answer,
     save_results,
     get_llm_config,
     get_work_dir,
@@ -73,13 +78,6 @@ else:
 
 LLM_CONFIG = get_llm_config(llm_provider=llm_provider, api_key=api_key)
 
-task = """
-Find research papers on software testing that satisfy ALL of the following constraints:
-1) Published in 2024.
-2) Have more than 10 citations.
-3) Return the top three articles, providing for each: title, authors, publication year, number of citations, and URL.
-"""
-
 executor = DockerCommandLineCodeExecutor(
     work_dir=get_work_dir(),
 )
@@ -103,40 +101,14 @@ research_paper_api_agent = SearchOrchestrator(
 )
 
 user_proxy = get_user_proxy(executor=executor)
+judge = get_external_judge_agent(custom_llm_config=LLM_CONFIG)
 
-judge = AssistantAgent(
-    name="judge",
-    llm_config=LLM_CONFIG,
-    system_message="""
-        You are an external evaluator of research paper agents. You will be given two sets of results from different agents attempting to complete the same research task.
-        Your role is to score and compare the quality of the results based on how well they meet the task requirements.
-        
-        When evaluating, consider:
-        - completness (1-5): Did the agent satisfy all explicit constraints in the task (e.g., publication year, citation count, number of results)?
-        - relevance (1-5): Are the returned papers relevant to the requested topic?
-        - honesty & transparency (1-5): Did the agent avoid fabricating citation counts or details, and did it explain any limitations of the tools used?
-        - clarity & structure (1-5): Is the answer easy to read, with titles, authors, years, citation counts, and URLs clearly listed where available?
 
-        Return the response exactly as follows, no extra commentary:
-        TERMINATE:
-        ```json
-        {
-            "ResearchPaperAPIAgent": {
-                "completness": <score 1-5>,
-                "relevance": <score 1-5>,
-                "honesty & transparency": <score 1-5>,
-                "clarity & structure": <score 1-5>
-            },
-            "WebSearchOrchestrator": {
-                "completness": <score 1-5>,
-                "relevance": <score 1-5>,
-                "honesty & transparency": <score 1-5>,
-                "clarity & structure": <score 1-5>
-            }
-        }
-        ```
-    """,
-)
+def has_result(agent_name: str, messages: list[dict]) -> bool:
+    return any(
+        msg.get("name") == agent_name and "RESULT:" in (msg.get("content") or "")
+        for msg in messages
+    )
 
 
 def speaker_selection(last_speaker, groupchat):
@@ -144,36 +116,38 @@ def speaker_selection(last_speaker, groupchat):
     last_message = messages[-1] if messages else {}
     last_message_content = last_message.get("content", "") if messages else ""
 
-    def has_result(agent_name):
-        return any(
-            msg.get("name") == agent_name and "RESULT:" in (msg.get("content") or "")
-            for msg in messages
-        )
-
     # kick-off the conversation
     if last_speaker is user_proxy and last_message_content.strip().startswith("TASK:"):
         return research_paper_api_agent
 
     # research_paper_api_agent <-> user_proxy until RESULTS
-    if not has_result("ResearchPaperAPIAgent"):
+    if not has_result("ResearchPaperAPIAgent", messages):
         if last_speaker is user_proxy:
             return research_paper_api_agent
         else:
             return user_proxy
 
     # web_search_agent <-> user_proxy until RESULTS
-    if not has_result("WebSearchOrchestrator"):
+    if not has_result("WebSearchOrchestrator", messages):
         if last_speaker is user_proxy:
             return web_search_agent
         else:
             return user_proxy
 
-    return judge
+    # once both RESULTS are in, end the conversation by injecting TERMINATE
+    return user_proxy
 
 
 def main():
+    def should_terminate(msg) -> bool:
+        if has_result("ResearchPaperAPIAgent", group.messages) and has_result(
+            "WebSearchOrchestrator", group.messages
+        ):
+            return True
+        return False
+
     group = GroupChat(
-        agents=[user_proxy, web_search_agent, research_paper_api_agent, judge],
+        agents=[user_proxy, research_paper_api_agent, web_search_agent],
         max_round=12,
         speaker_selection_method=speaker_selection,
     )
@@ -182,21 +156,34 @@ def main():
         name="main_manager",
         groupchat=group,
         llm_config=LLM_CONFIG,
-        is_termination_msg=lambda msg: (
-            isinstance(msg, dict)
-            and isinstance(msg.get("content"), str)
-            and "TERMINATE" in msg["content"]
-        ),
+        is_termination_msg=should_terminate,
     )
 
-    chat = user_proxy.initiate_chat(
-        manager,
-        message=f"TASK: {task}",
-        max_turns=20,
-        summary_method="reflection_with_llm",
-    )
+    for task in simple_tasks[0:1]:
+        chat = user_proxy.initiate_chat(
+            manager,
+            message=f"TASK: {task}",
+            max_turns=20,
+            summary_method="reflection_with_llm",
+        )
 
-    save_results(chat)
+        research_paper_api_agent_result = extract_final_answer(
+            chat, "ResearchPaperAPIAgent"
+        )
+        web_search_agent_result = extract_final_answer(chat, "WebSearchOrchestrator")
+
+        judge_scores = llm_judge_score(
+            judge,
+            user_prompt=task,
+            results={
+                "ResearchPaperAPIAgent": research_paper_api_agent_result,
+                "WebSearchOrchestrator": web_search_agent_result,
+            },
+        )
+
+        logging.info(f"Judge Scores: {judge_scores}")
+
+        save_results(chat, judge_eval=judge_scores)
 
 
 if __name__ == "__main__":

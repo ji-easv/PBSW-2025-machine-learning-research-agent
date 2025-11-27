@@ -1,5 +1,7 @@
 from autogen import AssistantAgent
 
+from utils.utils import EVALUATION_CRITERIA
+
 
 def get_internal_critic_agent(llm_config: dict) -> AssistantAgent:
     internal_critic = AssistantAgent(
@@ -11,11 +13,7 @@ def get_internal_critic_agent(llm_config: dict) -> AssistantAgent:
         Your task is to critically assess whether the latest answer from the search agent adequately addresses the user's research task,
         and if it fully meets the specified constraints.
 
-        When evaluating, consider:
-        - completness (1-5): Did the agent satisfy all explicit constraints in the task (e.g., publication year, citation count, number of results)?
-        - relevance (1-5): Are the returned papers relevant to the requested topic?
-        - honesty & transparency (1-5): Did the agent avoid fabricating citation counts or details, and did it explain any limitations of the tools used?
-        - clarity & structure (1-5): Is the answer easy to read, with titles, authors, years, citation counts, and URLs clearly listed where available?
+        {EVALUATION_CRITERIA}
 
         Rules:
         - If the latest answer is acceptable, respond with:

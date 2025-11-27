@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Dict, Literal
 
 from autogen import ChatResult
 
@@ -16,6 +16,14 @@ RESULT:
    Year: <publication year>
    Citations: <number of citations>
    URL: <URL>
+"""
+
+EVALUATION_CRITERIA = """
+When evaluating, consider:
+    - completness (1-5): Did the agent satisfy all explicit constraints in the task (e.g., publication year, citation count, number of results)?
+    - relevance (1-5): Are the returned papers relevant to the requested topic?
+    - honesty & transparency (1-5): Did the agent avoid fabricating citation counts or details, and did it explain any limitations of the tools used?
+    - clarity & structure (1-5): Is the answer easy to read, with titles, authors, years, citation counts, and URLs clearly listed where available?
 """
 
 
@@ -69,46 +77,53 @@ def get_work_dir():
     return p
 
 
-def save_results(chat: ChatResult, filename: str = "logs/latest_results.md"):
+def extract_final_answer(chat: ChatResult, agent_name: str) -> str:
+    """
+    Extracts the final answer (RESULT:) from the agent's chat history.
+    """
+
+    def has_result(msg_content: str) -> bool:
+        return msg_content.strip().startswith(
+            "RESULT:"
+        ) or msg_content.strip().startswith("RESULT:")
+
+    for msg in reversed(chat.chat_history):
+        name = msg.get("name", "")
+        content = msg.get("content", "")
+        if not content or not content.strip():
+            continue
+        if name != agent_name:
+            continue
+        if has_result(content):
+            return content.strip()
+    return "No RESULT found."
+
+
+def save_results(
+    chat: ChatResult, judge_eval: Dict, filename: str = "latest_results.md"
+):
     """
     Extracts the judge evaluation and each agent's final answer from the chat result,
     """
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    # Extract judge evaluation (JSON block with TERMINATE)
-    judge_eval = None
-    for msg in reversed(chat.chat_history):
-        content = msg.get("content", "")
-        if not content or not content.strip():
-            continue
-        if "{" in content and "}" in content and "TERMINATE:" in content:
-            judge_eval = content.replace("TERMINATE:", "").strip()
-            break
+    # Ensure logs directory exists
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    # Prepend timestamp to filename and save under logs/
+    base_filename = filename if filename.endswith(".md") else f"{filename}.md"
+    log_filename = logs_dir / f"{timestamp}_{base_filename}"
 
     # Extract agent results (RESULT from each agent)
     agent_results = {}
     agent_names = ["ResearchPaperAPIAgent", "WebSearchOrchestrator"]
     for agent in agent_names:
-        for msg in reversed(chat.chat_history):
-            name = msg.get("name", "")
-            content = msg.get("content", "")
-            if not content or not content.strip():
-                continue
-            if name != agent:
-                continue
-            if content.strip().startswith("RESULT:") or content.strip().startswith(
-                "RESULT:"
-            ):
-                agent_results[agent] = content.strip()
-                break
-            if content.strip().startswith("OK:") and "RESULT:" in content:
-                agent_results[agent] = content.strip()
-                break
+        agent_results[agent] = extract_final_answer(chat, agent)
 
-    with open(filename, "w", encoding="utf-8") as f:
+    with open(log_filename, "w", encoding="utf-8") as f:
         f.write(f"# Research Agent Results - {timestamp}\n\n")
         if judge_eval:
             f.write("## Judge Evaluation\n\n")
             f.write(f"{judge_eval}\n\n")
         for agent, result in agent_results.items():
             f.write(f"## {agent}\n\n{result}\n\n")
-    print(f"Results saved to {filename}")
+    print(f"Results saved to {log_filename}")
