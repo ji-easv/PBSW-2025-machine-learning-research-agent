@@ -159,7 +159,7 @@ def main():
         return False
 
     group = GroupChat(
-        agents=[user_proxy, web_search_agent],
+        agents=[user_proxy, research_paper_api_agent, web_search_agent],
         max_round=12,
         speaker_selection_method=speaker_selection,
     )
