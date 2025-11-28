@@ -129,14 +129,14 @@ def speaker_selection(last_speaker, groupchat):
 
     # kick-off the conversation
     if last_speaker is user_proxy and last_message_content.strip().startswith("TASK:"):
-        return research_paper_api_agent
+        return web_search_agent
 
     # research_paper_api_agent <-> user_proxy until RESULTS
-    if not has_result("ResearchPaperAPIAgent", messages):
-        if last_speaker is user_proxy:
-            return research_paper_api_agent
-        else:
-            return user_proxy
+    # if not has_result("ResearchPaperAPIAgent", messages):
+    #     if last_speaker is user_proxy:
+    #         return research_paper_api_agent
+    #     else:
+    #         return user_proxy
 
     # web_search_agent <-> user_proxy until RESULTS
     if not has_result("WebSearchOrchestrator", messages):
@@ -158,7 +158,7 @@ def main():
         return False
 
     group = GroupChat(
-        agents=[user_proxy, research_paper_api_agent, web_search_agent],
+        agents=[user_proxy, web_search_agent],
         max_round=12,
         speaker_selection_method=speaker_selection,
     )
@@ -179,16 +179,16 @@ def main():
             summary_method="reflection_with_llm",
         )
 
-        research_paper_api_agent_result = extract_final_answer(
-            chat, "ResearchPaperAPIAgent"
-        )
+        # research_paper_api_agent_result = extract_final_answer(
+        #     chat, "ResearchPaperAPIAgent"
+        # )
         web_search_agent_result = extract_final_answer(chat, "WebSearchOrchestrator")
 
         judge_scores = llm_judge_score(
             judge,
             user_prompt=task,
             results={
-                "ResearchPaperAPIAgent": research_paper_api_agent_result,
+                # "ResearchPaperAPIAgent": research_paper_api_agent_result,
                 "WebSearchOrchestrator": web_search_agent_result,
             },
         )
@@ -196,7 +196,7 @@ def main():
         scores.append(
             {
                 "task": task,
-                "ResearchPaperAPIAgent_result": research_paper_api_agent_result,
+                # "ResearchPaperAPIAgent_result": research_paper_api_agent_result,
                 "WebSearchOrchestrator_result": web_search_agent_result,
                 "judge_scores": judge_scores,
             }

@@ -18,7 +18,18 @@ RESULT:
    Citations: <number of citations>
    URL: <URL>
 
-If you cannot find results satisfying all constraints after multiple attempts, respond with:
+If you have found related papers, but some constraints could not be met (e.g., not enough papers with >X citations), respond with:
+JUSTIFICATION:
+<brief explanation of which constraints could not be met and why>
+RESULT:
+<list of papers you found>
+1. Title: <title>
+   Authors: <authors>
+   Year: <publication year>
+   Citations: <number of citations>
+   URL: <URL>
+
+If you cannot find any results meeting the constraints, respond with:
 JUSTIFICATION:
 <brief explanation of why the constraints could not be met>
 RESULT:

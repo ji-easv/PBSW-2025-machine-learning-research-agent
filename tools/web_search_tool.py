@@ -3,6 +3,7 @@ import re
 from typing import List
 from ddgs import DDGS
 from ratelimit import limits, sleep_and_retry
+import requests
 
 from datamodel.search_result import SearchResult
 
@@ -29,6 +30,22 @@ def is_blocked_content(results: list) -> bool:
     return True
 
 
+def fetch_link(url: str) -> str:
+    """Fetches the content of the given URL.
+
+    Args:
+        url (str): The URL to fetch.
+    """
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+
+        return response.text
+    except requests.RequestException as e:
+        return f"Error fetching the URL: {e}"
+
+
 @sleep_and_retry
 @limits(calls=10, period=30)
 def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
@@ -53,11 +70,12 @@ def search_web(query: str, num_results: int = 10) -> List[SearchResult]:
         - research filetype:pdf site:edu - PDFs from educational sites
 
     Time-based (add year to query):
-        - [topic] research 2020 - likely to return results from that year
-        - "[topic]" 2024 - recent results
+        - [topic] research after:2020 - results after 2020
+        - [topic] before:2015 - results before 2015
+        - "[topic]" 2025 - recent results
 
     Examples (diverse research domains):
-        - "neural networks" deep learning 2024
+        - "neural networks" deep learning before:2020 site:researchgate.net
         - "CRISPR gene editing" site:edu filetype:pdf
         - quantum computing algorithms -tutorial
         - "climate change models" 2023 site:nature.com
