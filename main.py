@@ -11,7 +11,7 @@ from agents.research_paper_agent import get_research_paper_api_agent
 from agents.search_orchestrator import SearchOrchestrator
 from agents.user_proxy_agent import get_user_proxy
 from agents.web_search_agent import get_web_search_agent
-from utils.task_prompts import complex_tasks, simple_tasks
+from utils.task_prompts import simple_tasks
 from autogen.coding import DockerCommandLineCodeExecutor
 from autogen import (
     GroupChat,
@@ -108,6 +108,7 @@ web_search_agent = SearchOrchestrator(
     human_input_mode="NEVER",
     llm_config=False,
     terminate_conversation=True,
+    max_turns=10,
 )
 
 
@@ -132,11 +133,11 @@ def speaker_selection(last_speaker, groupchat):
         return web_search_agent
 
     # research_paper_api_agent <-> user_proxy until RESULTS
-    # if not has_result("ResearchPaperAPIAgent", messages):
-    #     if last_speaker is user_proxy:
-    #         return research_paper_api_agent
-    #     else:
-    #         return user_proxy
+    if not has_result("ResearchPaperAPIAgent", messages):
+        if last_speaker is user_proxy:
+            return research_paper_api_agent
+        else:
+            return user_proxy
 
     # web_search_agent <-> user_proxy until RESULTS
     if not has_result("WebSearchOrchestrator", messages):
@@ -179,16 +180,16 @@ def main():
             summary_method="reflection_with_llm",
         )
 
-        # research_paper_api_agent_result = extract_final_answer(
-        #     chat, "ResearchPaperAPIAgent"
-        # )
+        research_paper_api_agent_result = extract_final_answer(
+            chat, "ResearchPaperAPIAgent"
+        )
         web_search_agent_result = extract_final_answer(chat, "WebSearchOrchestrator")
 
         judge_scores = llm_judge_score(
             judge,
             user_prompt=task,
             results={
-                # "ResearchPaperAPIAgent": research_paper_api_agent_result,
+                "ResearchPaperAPIAgent": research_paper_api_agent_result,
                 "WebSearchOrchestrator": web_search_agent_result,
             },
         )
@@ -196,7 +197,7 @@ def main():
         scores.append(
             {
                 "task": task,
-                # "ResearchPaperAPIAgent_result": research_paper_api_agent_result,
+                "ResearchPaperAPIAgent_result": research_paper_api_agent_result,
                 "WebSearchOrchestrator_result": web_search_agent_result,
                 "judge_scores": judge_scores,
             }

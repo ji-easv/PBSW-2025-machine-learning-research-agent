@@ -1,9 +1,10 @@
 import logging
 import re
+import requests
 from typing import List
 from ddgs import DDGS
 from ratelimit import limits, sleep_and_retry
-import requests
+from bs4 import BeautifulSoup
 
 from datamodel.search_result import SearchResult
 
@@ -30,20 +31,53 @@ def is_blocked_content(results: list) -> bool:
     return True
 
 
-def fetch_link(url: str) -> str:
-    """Fetches the content of the given URL.
+def check_pages_for_relevance(search_results: List[SearchResult]) -> List[SearchResult]:
+    for result in search_results:
+        response = requests.get(result.url, timeout=10)
+        if response.status_code != 200:
+            continue
 
-    Args:
-        url (str): The URL to fetch.
-    """
+        page_content = response.text
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
+        try:
+            soup = BeautifulSoup(page_content, "html.parser")
 
-        return response.text
-    except requests.RequestException as e:
-        return f"Error fetching the URL: {e}"
+            # Try to get title
+            if soup.title:
+                result.title = soup.title.string.strip()
+
+            # Try to find authors (look for meta tags or common patterns)
+            meta_authors = soup.find("meta", attrs={"name": "citation_author"})
+            if meta_authors:
+                result.authors = meta_authors.get("content")
+            else:
+                # Try to find by regex in the text
+                text = soup.get_text(separator=" ", strip=True)
+                author_match = re.search(
+                    r"Authors?:\s*([A-Z][a-zA-Z\-,. ]{3,100})", text
+                )
+                if author_match:
+                    result.authors = author_match.group(1).strip()
+
+            # Try to find citation count (look for common patterns)
+            citation_match = re.search(
+                r"(Cited by|Citations|Times cited)\s*:?\s*(\d+)",
+                page_content,
+                re.IGNORECASE,
+            )
+            if citation_match:
+                result.citations = int(citation_match.group(2))
+
+            # Try to find publication year (look for 4-digit year near 2000-2025)
+            year_match = re.search(r"(19|20)\d{2}", page_content)
+            if year_match:
+                y = int(year_match.group(0))
+                if 1990 < y <= 2025:
+                    result.publication_year = y
+
+        except Exception as e:
+            logging.error(f"Error parsing page {result.url}: {e}")
+    return search_results
 
 
 @sleep_and_retry

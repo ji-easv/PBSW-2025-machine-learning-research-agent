@@ -8,6 +8,7 @@ dependencies = [
     "ag2[gemini]>=0.10.0",
     "autogen==0.10.0",
     "autogen-ext[docker]>=0.7.5",
+    "beautifulsoup4>=4.14.2",
     "cerebras-cloud-sdk>=1.59.0",
     "ddgs>=9.9.1",
     "dotenv==0.9.9",

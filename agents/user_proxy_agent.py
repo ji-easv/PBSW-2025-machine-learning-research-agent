@@ -1,10 +1,9 @@
 from autogen import UserProxyAgent
 
-from tools.fetch_link_tool import fetch_link
 from tools.research_api_tool import (
     search_semantic_scholar,
 )
-from tools.web_search_tool import search_web
+from tools.web_search_tool import check_pages_for_relevance, search_web
 from autogen.coding import DockerCommandLineCodeExecutor
 
 
@@ -33,7 +32,7 @@ def get_user_proxy(executor: DockerCommandLineCodeExecutor) -> UserProxyAgent:
     )(search_semantic_scholar)
 
     user_proxy.register_for_execution(
-        name="fetch_link", description="Fetch a URL link."
-    )(fetch_link)
+        name="check_pages_for_relevance",
+    )(check_pages_for_relevance)
 
     return user_proxy

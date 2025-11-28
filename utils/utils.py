@@ -5,7 +5,6 @@ from typing import List, Literal
 
 from autogen import ChatResult
 
-MAX_INTERNAL_ROUNDS = 5
 
 FINAL_ANSWER_FORMAT = """
 FINAL ANSWER FORMAT:

@@ -10,7 +10,6 @@ from autogen.coding import DockerCommandLineCodeExecutor
 
 from agents.internal_critic_agent import get_internal_critic_agent
 from agents.user_proxy_agent import get_user_proxy
-from utils.utils import MAX_INTERNAL_ROUNDS
 
 
 class SearchOrchestrator(ConversableAgent):
@@ -20,6 +19,7 @@ class SearchOrchestrator(ConversableAgent):
         search_agent: AssistantAgent,
         executor: DockerCommandLineCodeExecutor,
         terminate_conversation: bool = False,
+        max_turns: int = 5,
         *args,
         **kwargs,
     ):
@@ -31,7 +31,7 @@ class SearchOrchestrator(ConversableAgent):
         self.search_agent = search_agent
         self.group = GroupChat(
             agents=[self.search_agent, self.critic, self.user_proxy],
-            max_round=MAX_INTERNAL_ROUNDS,
+            max_round=max_turns,
             speaker_selection_method=self.speaker_selection,
             allow_repeat_speaker=False,
         )
