@@ -19,12 +19,15 @@ class SearchOrchestrator(ConversableAgent):
         custom_llm_config: dict,
         search_agent: AssistantAgent,
         executor: DockerCommandLineCodeExecutor,
+        terminate_conversation: bool = False,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.user_proxy = get_user_proxy(executor)
-        self.critic = get_internal_critic_agent(custom_llm_config)
+        self.critic = get_internal_critic_agent(
+            custom_llm_config, terminate_conversation=terminate_conversation
+        )
         self.search_agent = search_agent
         self.group = GroupChat(
             agents=[self.search_agent, self.critic, self.user_proxy],

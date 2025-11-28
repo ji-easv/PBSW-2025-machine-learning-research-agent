@@ -16,6 +16,12 @@ RESULT:
    Year: <publication year>
    Citations: <number of citations>
    URL: <URL>
+
+If you cannot find results satisfying all constraints after multiple attempts, respond with:
+JUSTIFICATION:
+<brief explanation of why the constraints could not be met>
+RESULT:
+[]
 """
 
 EVALUATION_CRITERIA = """
@@ -82,11 +88,6 @@ def extract_final_answer(chat: ChatResult, agent_name: str) -> str:
     Extracts the final answer (RESULT:) from the agent's chat history.
     """
 
-    def has_result(msg_content: str) -> bool:
-        return msg_content.strip().startswith(
-            "RESULT:"
-        ) or msg_content.strip().startswith("RESULT:")
-
     for msg in reversed(chat.chat_history):
         name = msg.get("name", "")
         content = msg.get("content", "")
@@ -94,8 +95,11 @@ def extract_final_answer(chat: ChatResult, agent_name: str) -> str:
             continue
         if name != agent_name:
             continue
-        if has_result(content):
-            return content.strip()
+        if "RESULT:" in content.strip():
+            # Extract everything after "RESULT:"
+            content = content.replace("TERMINATE:", "")
+            result_index = content.index("RESULT:") + len("RESULT:")
+            return content[result_index:].strip()
     return "No RESULT found."
 
 

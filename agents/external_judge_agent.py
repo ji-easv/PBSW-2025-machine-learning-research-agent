@@ -17,12 +17,21 @@ def build_external_judge_prompt(task: str, results: dict[str, str]) -> str:
         """
 
 
-def llm_judge_score(judge_agent: AssistantAgent, user_prompt: str, results: dict[str, str]) -> Dict:
+def llm_judge_score(
+    judge_agent: AssistantAgent, user_prompt: str, results: dict[str, str]
+) -> Dict:
     judge_prompt = build_external_judge_prompt(user_prompt, results)
     raw = judge_agent.generate_reply(
         messages=[{"role": "user", "content": judge_prompt}]
     )
-    content = raw["content"].replace("```json", "").replace("```", "").strip()
+    content = (
+        raw["content"]
+        .replace("TERMINATE:", "")
+        .replace("```json", "")
+        .replace("```", "")
+        .replace("\n", "")
+        .strip()
+    )
 
     return json.loads(content)
 

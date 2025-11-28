@@ -82,15 +82,6 @@ executor = DockerCommandLineCodeExecutor(
     work_dir=get_work_dir(),
 )
 
-web_search_agent = SearchOrchestrator(
-    name="WebSearchOrchestrator",
-    custom_llm_config=LLM_CONFIG,
-    search_agent=get_web_search_agent(custom_llm_config=LLM_CONFIG),
-    executor=executor,
-    human_input_mode="NEVER",
-    llm_config=False,
-)
-
 research_paper_api_agent = SearchOrchestrator(
     name="ResearchPaperAPIAgent",
     custom_llm_config=LLM_CONFIG,
@@ -99,6 +90,17 @@ research_paper_api_agent = SearchOrchestrator(
     human_input_mode="NEVER",
     llm_config=False,
 )
+
+web_search_agent = SearchOrchestrator(
+    name="WebSearchOrchestrator",
+    custom_llm_config=LLM_CONFIG,
+    search_agent=get_web_search_agent(custom_llm_config=LLM_CONFIG),
+    executor=executor,
+    human_input_mode="NEVER",
+    llm_config=False,
+    terminate_conversation=True,
+)
+
 
 user_proxy = get_user_proxy(executor=executor)
 judge = get_external_judge_agent(custom_llm_config=LLM_CONFIG)
