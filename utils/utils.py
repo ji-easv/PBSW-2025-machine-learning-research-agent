@@ -1,10 +1,11 @@
 from datetime import datetime
+import json
 from pathlib import Path
-from typing import Dict, Literal
+from typing import List, Literal
 
 from autogen import ChatResult
 
-MAX_INTERNAL_ROUNDS = 10
+MAX_INTERNAL_ROUNDS = 5
 
 FINAL_ANSWER_FORMAT = """
 FINAL ANSWER FORMAT:
@@ -124,31 +125,16 @@ def extract_final_answer(chat: ChatResult, agent_name: str) -> str:
     return "No RESULT found."
 
 
-def save_results(
-    chat: ChatResult, judge_eval: Dict, filename: str = "latest_results.md"
-):
-    """
-    Extracts the judge evaluation and each agent's final answer from the chat result,
-    """
+def save_results(results: List[dict], filename: str = "latest_results.json"):
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     # Ensure logs directory exists
     logs_dir = Path("logs")
     logs_dir.mkdir(parents=True, exist_ok=True)
     # Prepend timestamp to filename and save under logs/
-    base_filename = filename if filename.endswith(".md") else f"{filename}.md"
+    base_filename = filename if filename.endswith(".json") else f"{filename}.json"
     log_filename = logs_dir / f"{timestamp}_{base_filename}"
 
-    # Extract agent results (RESULT from each agent)
-    agent_results = {}
-    agent_names = ["ResearchPaperAPIAgent", "WebSearchOrchestrator"]
-    for agent in agent_names:
-        agent_results[agent] = extract_final_answer(chat, agent)
-
     with open(log_filename, "w", encoding="utf-8") as f:
-        f.write(f"# Research Agent Results - {timestamp}\n\n")
-        if judge_eval:
-            f.write("## Judge Evaluation\n\n")
-            f.write(f"{judge_eval}\n\n")
-        for agent, result in agent_results.items():
-            f.write(f"## {agent}\n\n{result}\n\n")
+        json.dump(results, f, indent=4)
+
     print(f"Results saved to {log_filename}")

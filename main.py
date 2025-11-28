@@ -170,7 +170,8 @@ def main():
         is_termination_msg=should_terminate,
     )
 
-    for task in simple_tasks[0:1]:
+    scores = []
+    for task in simple_tasks:
         chat = user_proxy.initiate_chat(
             manager,
             message=f"TASK: {task}",
@@ -191,10 +192,17 @@ def main():
                 "WebSearchOrchestrator": web_search_agent_result,
             },
         )
-
         logging.info(f"Judge Scores: {judge_scores}")
+        scores.append(
+            {
+                "task": task,
+                "ResearchPaperAPIAgent_result": research_paper_api_agent_result,
+                "WebSearchOrchestrator_result": web_search_agent_result,
+                "judge_scores": judge_scores,
+            }
+        )
 
-        save_results(chat, judge_eval=judge_scores)
+    save_results(scores)
 
 
 if __name__ == "__main__":
