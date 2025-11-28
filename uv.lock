@@ -190,6 +190,23 @@ wheels = [
 ]
 
 [[package]]
+name = "cerebras-cloud-sdk"
+version = "1.59.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6e/4e/24b9e248a6dcff4ab67a33a359c5c2475c2b1f1ddf0ae46e557c761eb9b6/cerebras_cloud_sdk-1.59.0.tar.gz", hash = "sha256:0f0af8debc8871d4ec21528dc79b276a31e7a7f578b4a60fae3a1ae27d1f2486", size = 127687, upload-time = "2025-11-06T21:52:23.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/12/a86b2c95cda487970ca12724b8bb54eef82e94204f2caa0066367cbc55eb/cerebras_cloud_sdk-1.59.0-py3-none-any.whl", hash = "sha256:89228068a8d649cad0a9231b34bdc2fcdb925241eb3434d788dfea317f274ed7", size = 96186, upload-time = "2025-11-06T21:52:22.243Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.11.12"
 source = { registry = "https://pypi.org/simple" }
@@ -356,6 +373,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/3f/21/1c1ffc1a039ddcc459db43cc108658f32c57d271d7289a2794e401d0fdb6/diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc", size = 67916, upload-time = "2023-08-31T06:12:00.316Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/27/4570e78fc0bf5ea0ca45eb1de3818a23787af9b390c0b0a0033a1b8236f9/diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19", size = 45550, upload-time = "2023-08-31T06:11:58.822Z" },
+]
+
+[[package]]
+name = "distro"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527f8a2e8885fc8015d3e6f5775df186e443e0964a11c3/distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed", size = 60722, upload-time = "2023-12-24T09:54:32.31Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277, upload-time = "2023-12-24T09:54:30.421Z" },
 ]
 
 [[package]]
@@ -1473,6 +1499,7 @@ dependencies = [
     { name = "ag2", extra = ["gemini"] },
     { name = "autogen" },
     { name = "autogen-ext", extra = ["docker"] },
+    { name = "cerebras-cloud-sdk" },
     { name = "ddgs" },
     { name = "dotenv" },
     { name = "fix-busted-json" },
@@ -1488,6 +1515,7 @@ requires-dist = [
     { name = "ag2", extras = ["gemini"], specifier = ">=0.10.0" },
     { name = "autogen", specifier = "==0.10.0" },
     { name = "autogen-ext", extras = ["docker"], specifier = ">=0.7.5" },
+    { name = "cerebras-cloud-sdk", specifier = ">=1.59.0" },
     { name = "ddgs", specifier = ">=9.9.1" },
     { name = "dotenv", specifier = "==0.9.9" },
     { name = "fix-busted-json", specifier = "==0.0.18" },

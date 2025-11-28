@@ -33,7 +33,9 @@ When evaluating, consider:
 """
 
 
-def get_llm_config(llm_provider: Literal["mistral", "google"], api_key: str):
+def get_llm_config(
+    llm_provider: Literal["mistral", "google", "cerebras"], api_key: str
+):
     if llm_provider == "mistral":
         return {
             "config_list": [
@@ -59,6 +61,25 @@ def get_llm_config(llm_provider: Literal["mistral", "google"], api_key: str):
                 {
                     "model": "gemini-2.0-flash",
                     "api_type": "google",
+                    "api_key": api_key,
+                    "api_rate_limit": 0.1,
+                    "max_retries": 3,
+                    "num_predict": -1,
+                    "repeat_penalty": 1.1,
+                    "native_tool_calls": False,
+                    "stream": False,
+                    "seed": 23,
+                    "cache_seed": None,
+                    "timeout": 30,
+                }
+            ]
+        }
+    elif llm_provider == "cerebras":
+        return {
+            "config_list": [
+                {
+                    "model": "llama-3.3-70b",
+                    "api_type": "cerebras",
                     "api_key": api_key,
                     "api_rate_limit": 0.1,
                     "max_retries": 3,

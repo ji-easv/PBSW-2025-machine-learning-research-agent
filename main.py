@@ -43,7 +43,7 @@ parser = argparse.ArgumentParser(description="Research Paper Agent")
 group = parser.add_mutually_exclusive_group()
 group.add_argument(
     "--llm-provider",
-    choices=["mistral", "google"],
+    choices=["mistral", "google", "cerebras"],
     dest="llm_provider",
     default="mistral",
 )
@@ -61,20 +61,29 @@ group.add_argument(
     dest="llm_provider",
     help="Use Mistral as LLM provider",
 )
+group.add_argument(
+    "--cerebras",
+    action="store_const",
+    const="cerebras",
+    dest="llm_provider",
+    help="Use Cerebras as LLM provider",
+)
 
 args = parser.parse_args()
 llm_provider = args.llm_provider
 
 if llm_provider == "mistral":
-    api_key = os.getenv("MISTRAL_API_KEY")
-    if not api_key:
-        raise ValueError("MISTRAL_API_KEY not found in environment variables.")
+    env_var_name = "MISTRAL_API_KEY"
 elif llm_provider == "google":
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+    env_var_name = "GOOGLE_API_KEY"
+elif llm_provider == "cerebras":
+    env_var_name = "CEREBRAS_API_KEY"
 else:
     raise ValueError(f"Unsupported LLM provider: {llm_provider}")
+
+api_key = os.getenv(env_var_name)
+if not api_key:
+    raise ValueError(f"{env_var_name} not found in environment variables.")
 
 LLM_CONFIG = get_llm_config(llm_provider=llm_provider, api_key=api_key)
 
