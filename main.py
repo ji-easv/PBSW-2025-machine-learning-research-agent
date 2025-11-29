@@ -130,7 +130,7 @@ def speaker_selection(last_speaker, groupchat):
 
     # kick-off the conversation
     if last_speaker is user_proxy and last_message_content.strip().startswith("TASK:"):
-        return web_search_agent
+        return research_paper_api_agent
 
     # research_paper_api_agent <-> user_proxy until RESULTS
     if not has_result("ResearchPaperAPIAgent", messages):
