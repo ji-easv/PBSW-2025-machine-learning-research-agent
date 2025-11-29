@@ -64,3 +64,7 @@ Allows you to store output in a file:
 ```sh
 uv run main.py 2>&1 | tee logs/output.log
 ```
+
+## Architecture
+
+![research-agent.png](research-agent.png)
